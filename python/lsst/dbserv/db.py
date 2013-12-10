@@ -356,7 +356,7 @@ class Db:
 
         Create a table <tableName> in database <dbName>. If database <dbName> is not
         set, the default database name will be used. Connect to the server first if
-        connection not open already.
+        connection not open already. Raises exception if the table already exists.
         """
         dbName = self._getDefaultDbNameIfNeeded(dbName)
         self.connectToMySQLServer()
@@ -373,13 +373,35 @@ class Db:
 
         Drop table <tableName> in database <dbName>. If <dbName> is not set, the
         default database name will be used. Connect to the server first if
-        connection not open already.
+        connection not open already. Raises exception if the table does not exist.
         """
         dbName = self._getDefaultDbNameIfNeeded(dbName)
         self.connectToMySQLServer()
         if not self.checkTableExists(tableName, dbName):
             raise DbException(DbException.ERR_TB_DOES_NOT_EXIST)
         self.execCommand0("DROP TABLE %s.%s %s" % (dbName, tableName, tableSchema))
+
+    def isView(self, tableName, dbName=None):
+        """
+        Check if the table <tableName> is a view.
+
+        @param tableName  Table name.
+        @param dbName     Database name.
+
+        @return boolean   True if the table is a view. False otherwise.
+
+        If <dbName> is not set, the default database name will be used. Connect to
+        the server first if connection not open already. Raises exception if the
+        table does not exist.
+        """
+        dbName = self._getDefaultDbNameIfNeeded(dbName)
+        self.connectToMySQLServer()
+        if not self.checkTableExists(tableName, dbName):
+            raise DbException(DbException.ERR_TB_DOES_NOT_EXIST)
+        ret = self.execCommand1("SELECT COUNT(*) FROM information_schema.tables "
+                                "WHERE table_schema='%s' AND table_name='%s' AND "
+                                "table_type=\'VIEW\'" % (dbName, tableName))
+        return ret[0]
 
     def getTableContent(self, tableName, dbName=None):
         """
@@ -492,13 +514,17 @@ class Db:
             print ("Executing: %s." % command)
             cursor.execute(command)
         except (MySQLdb.Error, MySQLdb.OperationalError) as e:
-            self._closeConnection()
-            self._isConnectedToDb = False
-            cursor = None
-            msg = "MySQL Error [%d]: %s. Trying to recover..,"%(e.args[0],e.args[1])
-            if self.getDefaultDbName() is not None:
-                self.connectToDb(self.getDefaultDbName())
-            return self._execCommand(command, nRowsRet)
+            msg = "MySQL Error [%d]: %s." % (e.args[0],e.args[1])
+            if e.args[0] == 2002:
+                print "%s Connection-related failure, trying to recover..." % msg
+                self._closeConnection()
+                self._isConnectedToDb = False
+                cursor = None
+                if self.getDefaultDbName() is not None:
+                    self.connectToDb(self.getDefaultDbName())
+                return self._execCommand(command, nRowsRet)
+            else:
+                raise DbException(DbException.ERR_MYSQL_ERROR, [msg])
         if nRowsRet == 0:
             ret = ""
         elif nRowsRet == 1:

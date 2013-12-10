@@ -203,6 +203,21 @@ class TestDb(unittest.TestCase):
 
         self._db.disconnect()
 
+    def testViews(self):
+        """
+        Testing functionality related to views.
+        """
+        self._db = Db(host=theHost, port=thePort, user=theUser, passwd=thePass,
+                      socket=theSock, maxRetryCount=3)
+        self._db.createDb(dbA)
+        self._db.connectToDb(dbA)
+        self._db.createTable("t1", "(i int, j int)")
+        self._db.execCommand0("CREATE VIEW t2 AS SELECT i FROM t1")
+        self.assertFalse(self._db.isView("t1"))
+        self.assertTrue(self._db.isView("t2"))
+        self.assertRaises(DbException, self._db.isView, "dummy")
+        self._db.dropDb(dbA)
+
     def testServerRestart(self):
         """
         Testing recovery from lost connection.
