@@ -146,6 +146,9 @@ class Db:
         self._socket = socket
         self._defaultDbName = dbName
 
+        # connection error, recoverable by reconnecting
+        self._mysqlConnErrors = [2002, 2006] 
+
     def __del__(self):
         """
         Disconnect from the server.
@@ -196,7 +199,7 @@ class Db:
         msg += "'%s' or host:port: '%s:%s'. Error: %d: %s." % \
             (self._socket, self._host, self._port, e0, e1)
         self._curRetryCount += 1
-        if e0 == 2002 and self._curRetryCount <= self._maxRetryCount:
+        if e0 in self._mysqlConnErrors and self._curRetryCount<=self._maxRetryCount:
             print "Waiting for mysqld to come back..."
             sleep(3)
         else:
@@ -515,7 +518,7 @@ class Db:
             cursor.execute(command)
         except (MySQLdb.Error, MySQLdb.OperationalError) as e:
             msg = "MySQL Error [%d]: %s." % (e.args[0],e.args[1])
-            if e.args[0] == 2002:
+            if e.args[0] in self._mysqlConnErrors:
                 print "%s Connection-related failure, trying to recover..." % msg
                 self._closeConnection()
                 self._isConnectedToDb = False
