@@ -32,6 +32,7 @@ Known issues and todos:
  - need to implement proper logging instead of print.
 """
 
+import logging
 import _mysql_exceptions
 import MySQLdb
 import StringIO
@@ -133,6 +134,7 @@ class Db:
         Initialize shared state. Raise exception if both host/port AND socket are
         invalid.
         """
+        self._logger = logging.getLogger("DBWRAP")
         if host is None and port is None and socketIsNone:
             raise DbException(DbException.ERR_MISSING_CON_INFO)
         self._conn = None
@@ -175,10 +177,12 @@ class Db:
         Connect through socket. On failure, try connecting through host/port.
         """
         try:
+            self._logger.info("connecting using socket '%s'" % self._socket)
             self._conn = MySQLdb.connect(user=self._user,
                                          passwd=self._passwd,
                                          unix_socket=self._socket)
         except MySQLdb.Error as e:
+            self._logger.info("connect through socket failed")
             if self._host is not None and self._port is not None:
                 self._connectThroughPort()
             else:
@@ -186,11 +190,14 @@ class Db:
 
     def _connectThroughPort(self):
         try:
+            self._logger.info(
+                "connecting using '%s:%s'" % (self._host, self._port))
             self._conn = MySQLdb.connect(user=self._user,
                                          passwd=self._passwd,
                                          host=self._host,
                                          port=self._port)
         except MySQLdb.Error as e:
+            self._logger.info("connect through host:port failed")
             self._handleConnectionFailure(e.args[0], e.args[1])
 
     def _handleConnectionFailure(self, e0, e1):
@@ -200,9 +207,10 @@ class Db:
             (self._socket, self._host, self._port, e0, e1)
         self._curRetryCount += 1
         if e0 in self._mysqlConnErrors and self._curRetryCount<=self._maxRetryCount:
-            print "Waiting for mysqld to come back..."
+            self._logger.info("Waiting for mysqld to come back...")
             sleep(3)
         else:
+            self._logger.error("Giving up on connecting")
             raise DbException(DbException.ERR_MYSQL_CONNECT, [msg])
 
     def disconnect(self):
@@ -210,13 +218,14 @@ class Db:
         Commit transaction, and disconnect from the server.
         """
         if self._conn == None: return
+        self._logger.info("disconnecting")
         try:
             self.commit()
             self._closeConnection()
         except MySQLdb.Error, e:
-            msg = "DB Error %d: %s." % \
+            msg = "Failed to disconnect %d: %s." % \
                                    (e.args[0], e.args[1])
-            # self._logger.error(msg)
+            self._logger.error(msg)
             raise DbException(DbException.ERR_MYSQL_DISCONN, [msg])
         # self._logger.debug("MySQL connection closed.")
         self._conn = None
@@ -242,7 +251,7 @@ class Db:
             raise DbException(DbException.ERR_CANT_CONNECT_TO_DB, [dbName])
         self._isConnectedToDb = True
         self._defaultDbName = dbName
-        # self._logger.debug("Connected to db '%s'." % self._defaultDbName)
+        self._logger.info("Connected to db '%s'." % self._defaultDbName)
 
     def checkIsConnected(self):
         """
@@ -270,6 +279,7 @@ class Db:
         if not self.checkIsConnected():
             raise DbException(DbException.ERR_NOT_CONNECTED)
         self._conn.commit()
+        self._logger.info("commit done")
 
     def checkDbExists(self, dbName=None):
         """
@@ -444,7 +454,7 @@ class Db:
         @param scriptPath Path the the SQL script.
         @param dbName     Database name.
         """
-        # self._logger.debug("loading script %s into db %s" %(scriptPath,dbName))
+        self._logger.debug("loading script %s into db %s" %(scriptPath,dbName))
         if self._passwd:
             if self._socket is None:
                 cmd = 'mysql -h%s -P%s -u%s -p%s %s' % \
@@ -513,13 +523,13 @@ class Db:
                               ["self._conn is <None> in _execCommand"])
         cursor = self._conn.cursor()
         try:
-            # self._logger.debug("Executing '%s'." % command)
-            print ("Executing: %s." % command)
+            self._logger.debug("Executing '%s'." % command)
             cursor.execute(command)
         except (MySQLdb.Error, MySQLdb.OperationalError) as e:
             msg = "MySQL Error [%d]: %s." % (e.args[0],e.args[1])
             if e.args[0] in self._mysqlConnErrors:
-                print "%s Connection-related failure, trying to recover..." % msg
+                self._logger.info(
+                    "%s Connection-related failure, trying to recover..." % msg)
                 self._closeConnection()
                 self._isConnectedToDb = False
                 cursor = None
@@ -527,15 +537,16 @@ class Db:
                     self.connectToDb(self.getDefaultDbName())
                 return self._execCommand(command, nRowsRet)
             else:
+                self._logger.error("Command failed. ", msg)
                 raise DbException(DbException.ERR_MYSQL_ERROR, [msg])
         if nRowsRet == 0:
             ret = ""
         elif nRowsRet == 1:
             ret = cursor.fetchone()
-            # self._logger.debug("Got: %s" % str(ret))
+            self._logger.debug("Got: %s" % str(ret))
         else:
             ret = cursor.fetchall()
-            # self._logger.debug("Got: %s" % str(ret))
+            self._logger.debug("Got: %s" % str(ret))
         cursor.close()
         return ret
 
@@ -562,6 +573,7 @@ class Db:
         """
         Close connection to the server.
         """
+        self._logger.info("closing connection")
         if self._conn is None: return
         self._conn.close()
         self._conn = None
@@ -570,5 +582,6 @@ class Db:
         """
         Reset the default database and disconnect from the server.
         """
+        self._logger.debug("resetting default db name")
         self._defaultDbName = None
         self.disconnect()
