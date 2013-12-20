@@ -154,7 +154,8 @@ class Db:
         self._socket = socket
         self._defaultDbName = dbName
 
-        # connection error, recoverable by reconnecting
+        # MySQL connection-related error numbers. 
+        # These are typically recoverable by reconnecting.
         self._mysqlConnErrors = [2002, 2006] 
 
     def __del__(self):
@@ -168,7 +169,7 @@ class Db:
         Connect to MySQL Server. Socket has higher priority than host/port.
         """
         while self._curRetryCount <= self._maxRetryCount:
-            if self.checkIsConnected(): 
+            if self.checkIsConnected():
                 return
             if self._socket is not None:
                 self._connectThroughSocket()
@@ -176,7 +177,6 @@ class Db:
                 self._connectThroughPort()
             if self.checkIsConnected(): 
                 self._curRetryCount = 0
-                return
 
     def _connectThroughSocket(self):
         """
@@ -233,11 +233,10 @@ class Db:
             self.commit()
             self._closeConnection()
         except MySQLdb.Error, e:
-            msg = "Failed to disconnect %d: %s." % \
-                                   (e.args[0], e.args[1])
+            msg = "Failed to disconnect %d: %s." % (e.args[0], e.args[1])
             self._logger.error(msg)
             raise DbException(DbException.ERR_MYSQL_DISCONN, [msg])
-        # self._logger.debug("MySQL connection closed.")
+        self._logger.debug("MySQL connection closed.")
         self._conn = None
         self._isConnectedToDb = False
 
@@ -257,7 +256,7 @@ class Db:
             self.connectToMySQLServer()
             self._conn.select_db(dbName)
         except MySQLdb.Error, e:
-            # self._logger.debug("Failed to select db '%s'." % dbName)
+            self._logger.error("Failed to select db '%s'." % dbName)
             raise DbException(DbException.ERR_CANT_CONNECT_TO_DB, [dbName])
         self._isConnectedToDb = True
         self._defaultDbName = dbName
@@ -464,7 +463,7 @@ class Db:
         @param scriptPath Path the the SQL script.
         @param dbName     Database name.
         """
-        self._logger.debug("loading script %s into db %s" %(scriptPath,dbName))
+        self._logger.info("loading script %s into db %s" %(scriptPath,dbName))
         if self._passwd:
             if self._socket is None:
                 cmd = 'mysql -h%s -P%s -u%s -p%s %s' % \
@@ -479,7 +478,7 @@ class Db:
             else:
                 cmd = 'mysql -S%s -u%s %s' % \
                 (self._socket, self._user, dbName)
-        # self._logger.debug("cmd is %s" % cmd)
+        self._logger.debug("cmd is %s" % cmd)
         with file(scriptPath) as scriptFile:
             if subprocess.call(cmd.split(), stdin=scriptFile) != 0:
                 msg = "Failed to execute %s < %s" % (cmd,scriptPath)
