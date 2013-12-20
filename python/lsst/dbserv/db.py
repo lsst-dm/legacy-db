@@ -26,10 +26,6 @@ database utilities such as connecting to database. It caches connections, and
 handles database errors.
 
 @author  Jacek Becla, SLAC
-
-
-Known issues and todos:
- - need to implement proper logging instead of print.
 """
 
 import logging
