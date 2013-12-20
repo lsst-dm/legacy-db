@@ -26,6 +26,13 @@ database utilities such as connecting to database. It caches connections, and
 handles database errors.
 
 @author  Jacek Becla, SLAC
+
+Known issues:
+ * By default mysql will use socket for local connections. That means that
+   we can specify host and *bad* port, and mysql connect will usually manage 
+   to default to a socket corresponding to the system- installed mysql. 
+   (Through a command line we can prevent that by forcing protocol: --protocol=TCP,
+   but I can't find the option to do that through mysqldb API. Will fix that soon.)
 """
 
 import logging
@@ -110,6 +117,9 @@ class Db:
     lost connection, It also implements some useful functions, like creating
     databases/tables. Connection is done either through host/port or socket (at
     least one of these must be provided). DbName is optional. Password can be empty.
+    If it can't connect, it will retry (and sleep). Known feature: it has no way
+    of knowing if specified socket is invalid or server is down, so if bad socket
+    is specified, it will still try to retry using that socket.
     """
 
     def __init__(self, user, passwd=None, host=None, port=None, 
@@ -130,10 +140,10 @@ class Db:
         Initialize shared state. Raise exception if both host/port AND socket are
         invalid.
         """
-        self._logger = logging.getLogger("DBWRAP")
-        if host is None and port is None and socketIsNone:
-            raise DbException(DbException.ERR_MISSING_CON_INFO)
         self._conn = None
+        self._logger = logging.getLogger("DBWRAP")
+        if host is None and port is None and socket is None:
+            raise DbException(DbException.ERR_MISSING_CON_INFO)
         self._isConnectedToDb = False
         self._maxRetryCount = maxRetryCount
         self._curRetryCount = 0
@@ -173,7 +183,9 @@ class Db:
         Connect through socket. On failure, try connecting through host/port.
         """
         try:
-            self._logger.info("connecting using socket '%s'" % self._socket)
+            self._logger.info("connecting as '%s' using socket '%s', %d of %d" % \
+                                  (self._user, self._socket, 
+                                   self._curRetryCount, self._maxRetryCount))
             self._conn = MySQLdb.connect(user=self._user,
                                          passwd=self._passwd,
                                          unix_socket=self._socket)
@@ -186,8 +198,9 @@ class Db:
 
     def _connectThroughPort(self):
         try:
-            self._logger.info(
-                "connecting using '%s:%s'" % (self._host, self._port))
+            self._logger.info("connecting as '%s' using '%s:%s', %d of %d" % \
+                                  (self._user, self._host, self._port,
+                                   self._curRetryCount, self._maxRetryCount))
             self._conn = MySQLdb.connect(user=self._user,
                                          passwd=self._passwd,
                                          host=self._host,
@@ -195,6 +208,7 @@ class Db:
         except MySQLdb.Error as e:
             self._logger.info("connect through host:port failed")
             self._handleConnectionFailure(e.args[0], e.args[1])
+        self._logger.debug("connected through '%s:%s'" % (self._host, self._port))
 
     def _handleConnectionFailure(self, e0, e1):
         self._closeConnection()
