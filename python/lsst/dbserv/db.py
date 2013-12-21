@@ -52,7 +52,6 @@ class DbException(Exception):
 
     # note: error numbered 1000 - 1200 are used by mysql,
     # see mysqld_ername.h in mysql source code
-    SUCCESS                =    0
     ERR_CANT_CONNECT_TO_DB = 1500
     ERR_CANT_EXEC_SCRIPT   = 1505
     ERR_DB_EXISTS          = 1510
@@ -103,7 +102,8 @@ class DbException(Exception):
 
         @return string  Error message string, including all optional messages.
         """
-        msg = self._errors.get(self._errNo, "Undefined database error")
+        msg = self._errors.get(self._errNo, 
+                               "Unrecognized database error: %d" % self._errNo)
         if self._extraMsgList is not None:
             for s in self._extraMsgList: msg += " (%s)" % s
         return msg
@@ -142,7 +142,9 @@ class Db:
         """
         self._conn = None
         self._logger = logging.getLogger("DBWRAP")
-        if host is None and port is None and socket is None:
+        if socket is None and (host is None or port<0 or port>65535):
+            self._logger.error("Missing connection info, socket=None, " + 
+                               "host=%s, port=%d" % (host, port))
             raise DbException(DbException.ERR_MISSING_CON_INFO)
         self._isConnectedToDb = False
         self._maxRetryCount = maxRetryCount
