@@ -28,11 +28,7 @@ handles database errors.
 @author  Jacek Becla, SLAC
 
 Known issues:
- * By default mysql will use socket for local connections. That means that
-   we can specify host and *bad* port, and mysql connect will usually manage 
-   to default to a socket corresponding to the system- installed mysql. 
-   (Through a command line we can prevent that by forcing protocol: --protocol=TCP,
-   but I can't find the option to do that through mysqldb API. Will fix that soon.)
+ * none.
 """
 
 import logging
@@ -142,13 +138,24 @@ class Db:
         """
         self._conn = None
         self._logger = logging.getLogger("DBWRAP")
-        if socket is None and (host is None or port<0 or port>65535):
-            self._logger.error("Missing connection info, socket=None, " + 
-                               "host=%s, port=%d" % (host, port))
-            raise DbException(DbException.ERR_MISSING_CON_INFO)
+        if socket is None and (host is None or port<1 or port>65535):
+            if host is None:
+                self._logger.error(
+                    "Missing connection info, socket=None, host=None")
+                raise DbException(DbException.ERR_MISSING_CON_INFO, 
+                                  "invalid socket and host name")
+            else:
+                self._logger.error("Missing connection info, socket=None, " +
+                                   "port is invalid (must be within 1-65534)")
+                raise DbException(DbException.ERR_MISSING_CON_INFO, 
+                                  "invalid port number, must be within 1-65534")
         self._isConnectedToDb = False
         self._maxRetryCount = maxRetryCount
         self._curRetryCount = 0
+        # mysql defaults to socket if it sees "localhost". 127.0.0.1 will force TCP.
+        if host == "localhost":
+            host = "127.0.0.1"
+            self._logger.warning('"localhost" specified, switching to 127.0.0.1')
         self._host = host
         self._port = port
         self._user = user

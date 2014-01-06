@@ -84,11 +84,18 @@ class TestDb(unittest.TestCase):
         self.assertRaises(DbException, db.connectToMySQLServer)
 
     def testConn_invalidHost(self):
-        db = Db(theUser, thePass, theHost, 98761)
-        # Disabling becasuse this will actually work: it will default 
+        db = Db(theUser, thePass, "dummyHost", 3036)
+        # Disabling because this will actually work: it will default 
         # to socket if the host is "localhost". 
         # See known issues in db.py. 
-        # self.assertRaises(DbException, db.connectToMySQLServer)
+        self.assertRaises(DbException, db.connectToMySQLServer)
+
+    def testConn_invalidPortNo(self):
+        self.assertRaises(DbException, Db, theUser, thePass, theHost, 987654)
+
+    def testConn_wrongPortNo(self):
+        db = Db(theUser, thePass, theHost, 1579)
+        self.assertRaises(DbException, db.connectToMySQLServer)
 
     def testConn_invalidUserName(self):
         db = Db("hackr", thePass, theHost, thePort)
@@ -140,7 +147,7 @@ class TestDb(unittest.TestCase):
         self.assertTrue(db.checkIsConnected())
         self.assertFalse(db.checkIsConnectedToDb(dbA))
         self.assertFalse(db.checkIsConnectedToDb(dbB))
-        # create db, still don't connect to ti
+        # create db, still don't connect to it
         db.createDb(dbA)
         self.assertTrue(db.checkIsConnected())
         self.assertFalse(db.checkIsConnectedToDb(dbA))
