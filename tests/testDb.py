@@ -34,7 +34,7 @@ socket   = <socket>
 @author  Jacek Becla, SLAC
 
 Known issues and todos:
- * non-unique db name
+ * it blocks on user input.
 """
 
 import ConfigParser
@@ -45,18 +45,17 @@ import time
 import unittest
 from db import Db, DbException
 
-dbA = "_dbWrapperTestDb_A"
-dbB = "_dbWrapperTestDb_B"
-dbC = "_dbWrapperTestDb_C"
-
-
 class TestDb(unittest.TestCase):
     def setUp(self):
         self._initCredentials("~/.lsst.my.cnf")
+        self._dbA = "%s_dbWrapperTestDb_A" % self._user
+        self._dbB = "%s_dbWrapperTestDb_B" % self._user
+        self._dbC = "%s_dbWrapperTestDb_C" % self._user
+
         db = Db(self._user, self._pass, self._host, self._port, self._sock)
-        if db.checkDbExists(dbA): self._db.dropDb(dbA)
-        if db.checkDbExists(dbB): self._db.dropDb(dbB)
-        if db.checkDbExists(dbC): self._db.dropDb(dbC)
+        if db.checkDbExists(self._dbA): self._db.dropDb(self._dbA)
+        if db.checkDbExists(self._dbB): self._db.dropDb(self._dbB)
+        if db.checkDbExists(self._dbC): self._db.dropDb(self._dbC)
         db.disconnect()
 
     def _initCredentials(self, fN):
@@ -85,10 +84,10 @@ class TestDb(unittest.TestCase):
         table, drop the db, disconnect.
         """
         db = Db(self._user, self._pass, self._host, self._port)
-        db.createDb(dbA)
-        db.connectToDb(dbA)
+        db.createDb(self._dbA)
+        db.connectToDb(self._dbA)
         db.createTable("t1", "(i int)")
-        db.dropDb(dbA)
+        db.dropDb(self._dbA)
         db.disconnect()
 
     def testBasicSocketConn(self):
@@ -97,16 +96,16 @@ class TestDb(unittest.TestCase):
         table, drop the db, disconnect.
         """
         db = Db(self._user, self._pass, socket=self._sock)
-        db.createDb(dbA)
-        db.connectToDb(dbA)
+        db.createDb(self._dbA)
+        db.connectToDb(self._dbA)
         db.createTable("t1", "(i int)")
-        db.dropDb(dbA)
+        db.dropDb(self._dbA)
         db.disconnect()
 
     def testBasicOptionFileConn(self):
         db = Db(optionFile="~/.lsst.my.cnf")
-        db.createDb(dbA)
-        db.dropDb(dbA)
+        db.createDb(self._dbA)
+        db.dropDb(self._dbA)
         db.disconnect()
 
     def testConn_invalidHost(self):
@@ -192,53 +191,53 @@ class TestDb(unittest.TestCase):
         db.disconnect()
         # not connected at all
         self.assertFalse(db.checkIsConnected())
-        self.assertFalse(db.checkIsConnectedToDb(dbA))
-        self.assertFalse(db.checkIsConnectedToDb(dbB))
+        self.assertFalse(db.checkIsConnectedToDb(self._dbA))
+        self.assertFalse(db.checkIsConnectedToDb(self._dbB))
         # just initialize state, still not connected at all
         db = Db(self._user, self._pass, self._host, self._port, self._sock)
         self.assertFalse(db.checkIsConnected())
-        self.assertFalse(db.checkIsConnectedToDb(dbA))
-        self.assertFalse(db.checkIsConnectedToDb(dbB))
+        self.assertFalse(db.checkIsConnectedToDb(self._dbA))
+        self.assertFalse(db.checkIsConnectedToDb(self._dbB))
         # connect to server, not to db
         db.connectToMySQLServer()
         self.assertTrue(db.checkIsConnected())
-        self.assertFalse(db.checkIsConnectedToDb(dbA))
-        self.assertFalse(db.checkIsConnectedToDb(dbB))
+        self.assertFalse(db.checkIsConnectedToDb(self._dbA))
+        self.assertFalse(db.checkIsConnectedToDb(self._dbB))
         # create db, still don't connect to it
-        db.createDb(dbA)
+        db.createDb(self._dbA)
         self.assertTrue(db.checkIsConnected())
-        self.assertFalse(db.checkIsConnectedToDb(dbA))
-        self.assertFalse(db.checkIsConnectedToDb(dbB))
+        self.assertFalse(db.checkIsConnectedToDb(self._dbA))
+        self.assertFalse(db.checkIsConnectedToDb(self._dbB))
         # finally connect to it
-        db.connectToDb(dbA)
+        db.connectToDb(self._dbA)
         self.assertTrue(db.checkIsConnected())
-        self.assertTrue(db.checkIsConnectedToDb(dbA))
-        self.assertFalse(db.checkIsConnectedToDb(dbB))
+        self.assertTrue(db.checkIsConnectedToDb(self._dbA))
+        self.assertFalse(db.checkIsConnectedToDb(self._dbB))
         # delete that database
-        db.dropDb(dbA)
+        db.dropDb(self._dbA)
         self.assertFalse(db.checkIsConnected())
-        self.assertFalse(db.checkIsConnectedToDb(dbA))
-        self.assertFalse(db.checkIsConnectedToDb(dbB))
+        self.assertFalse(db.checkIsConnectedToDb(self._dbA))
+        self.assertFalse(db.checkIsConnectedToDb(self._dbB))
 
     def testMultiDbs(self):
         """
         Try interleaving operations on multiple databases.
         """
         db = Db(self._user, self._pass, self._host, self._port, self._sock)
-        db.createDb(dbA)
-        db.createDb(dbB)
-        db.createDb(dbC)
-        db.connectToDb(dbA)
-        db.createTable("t1", "(i int)", dbB)
+        db.createDb(self._dbA)
+        db.createDb(self._dbB)
+        db.createDb(self._dbC)
+        db.connectToDb(self._dbA)
+        db.createTable("t1", "(i int)", self._dbB)
         db.createTable("t1", "(i int)")
-        db.createTable("t1", "(i int)", dbC)
-        db.dropDb(dbB)
-        db.createTable("t2", "(i int)", dbA)
-        db.dropDb(dbA)
-        db.connectToDb(dbC)
+        db.createTable("t1", "(i int)", self._dbC)
+        db.dropDb(self._dbB)
+        db.createTable("t2", "(i int)", self._dbA)
+        db.dropDb(self._dbA)
+        db.connectToDb(self._dbC)
         db.createTable("t2", "(i int)")
-        db.createTable("t3", "(i int)", dbC)
-        db.dropDb(dbC)
+        db.createTable("t3", "(i int)", self._dbC)
+        db.dropDb(self._dbC)
         db.disconnect()
 
     def testMultiCreateDef(self):
@@ -246,14 +245,14 @@ class TestDb(unittest.TestCase):
         Test creating db/table that already exists (in default db).
         """
         db = Db(self._user, self._pass, self._host, self._port, self._sock)
-        db.createDb(dbA)
-        self.assertRaises(DbException, db.createDb, dbA)
-        db.connectToDb(dbA)
-        self.assertRaises(DbException, db.createDb, dbA)
+        db.createDb(self._dbA)
+        self.assertRaises(DbException, db.createDb, self._dbA)
+        db.connectToDb(self._dbA)
+        self.assertRaises(DbException, db.createDb, self._dbA)
         db.createTable("t1", "(i int)")
         self.assertRaises(DbException, db.createTable, "t1", "(i int)")
-        db.dropDb(dbA)
-        self.assertRaises(DbException, db.dropDb, dbA)
+        db.dropDb(self._dbA)
+        self.assertRaises(DbException, db.dropDb, self._dbA)
         db.disconnect()
 
     def testMultiCreateNonDef(self):
@@ -261,25 +260,25 @@ class TestDb(unittest.TestCase):
         Test creating db/table that already exists (in non default db).
         """
         db = Db(self._user, self._pass, self._host, self._port, self._sock)
-        db.createDb(dbA)
-        self.assertRaises(DbException, db.createDb, dbA)
-        db.connectToDb(dbA)
-        db.createDb(dbB)
-        self.assertRaises(DbException, db.createDb, dbA)
+        db.createDb(self._dbA)
+        self.assertRaises(DbException, db.createDb, self._dbA)
+        db.connectToDb(self._dbA)
+        db.createDb(self._dbB)
+        self.assertRaises(DbException, db.createDb, self._dbA)
         db.createTable("t1", "(i int)")
         self.assertRaises(DbException, db.createTable, "t1", "(i int)")
-        db.createTable("t2", "(i int)", dbA)
-        self.assertRaises(DbException, db.createTable, "t1", "(i int)", dbA)
-        self.assertRaises(DbException, db.createTable, "t2", "(i int)", dbA)
+        db.createTable("t2", "(i int)", self._dbA)
+        self.assertRaises(DbException, db.createTable, "t1", "(i int)", self._dbA)
+        self.assertRaises(DbException, db.createTable, "t2", "(i int)", self._dbA)
 
-        db.createTable("t1", "(i int)", dbB)
-        self.assertRaises(DbException, db.createTable, "t1", "(i int)", dbB)
+        db.createTable("t1", "(i int)", self._dbB)
+        self.assertRaises(DbException, db.createTable, "t1", "(i int)", self._dbB)
 
-        db.dropDb(dbA)
-        self.assertRaises(DbException, db.dropDb, dbA)
-        self.assertRaises(DbException, db.createTable, "t1", "(i int)", dbB)
+        db.dropDb(self._dbA)
+        self.assertRaises(DbException, db.dropDb, self._dbA)
+        self.assertRaises(DbException, db.createTable, "t1", "(i int)", self._dbB)
 
-        db.dropDb(dbB)
+        db.dropDb(self._dbB)
         db.disconnect()
 
     def testCheckExists(self):
@@ -291,21 +290,21 @@ class TestDb(unittest.TestCase):
         self.assertFalse(db.checkTableExists("bla"))
         self.assertFalse(db.checkTableExists("bla", "blaBla"))
 
-        db.createDb(dbA)
-        self.assertTrue(db.checkDbExists(dbA))
+        db.createDb(self._dbA)
+        self.assertTrue(db.checkDbExists(self._dbA))
         self.assertFalse(db.checkDbExists("bla"))
         self.assertFalse(db.checkTableExists("bla"))
         self.assertFalse(db.checkTableExists("bla", "blaBla"))
 
-        db.createTable("t1", "(i int)", dbA)
-        self.assertTrue(db.checkDbExists(dbA))
+        db.createTable("t1", "(i int)", self._dbA)
+        self.assertTrue(db.checkDbExists(self._dbA))
         self.assertFalse(db.checkDbExists("bla"))
-        self.assertTrue(db.checkTableExists("t1", dbA))
-        db.connectToDb(dbA)
+        self.assertTrue(db.checkTableExists("t1", self._dbA))
+        db.connectToDb(self._dbA)
         self.assertTrue(db.checkTableExists("t1"))
         self.assertFalse(db.checkTableExists("bla"))
         self.assertFalse(db.checkTableExists("bla", "blaBla"))
-        db.dropDb(dbA)
+        db.dropDb(self._dbA)
 
         self.assertFalse(db.checkUserExists("d_Xx_u12my", "localhost"))
         self.assertTrue(db.checkUserExists("root", "localhost"))
@@ -317,27 +316,27 @@ class TestDb(unittest.TestCase):
         Testing functionality related to views.
         """
         db = Db(self._user, self._pass, self._host, self._port, self._sock)
-        db.createDb(dbA)
-        db.connectToDb(dbA)
+        db.createDb(self._dbA)
+        db.connectToDb(self._dbA)
         db.createTable("t1", "(i int, j int)")
         db.execCommand0("CREATE VIEW t2 AS SELECT i FROM t1")
         self.assertFalse(db.isView("t1"))
         self.assertTrue(db.isView("t2"))
         self.assertRaises(DbException, db.isView, "dummy")
-        db.dropDb(dbA)
+        db.dropDb(self._dbA)
 
     def testServerRestart(self):
         """
         Testing recovery from lost connection.
         """
         db = Db(self._user, self._pass, self._host, self._port, self._sock, maxRetryCount=3)
-        db.createDb(dbA)
-        db.connectToDb(dbA)
+        db.createDb(self._dbA)
+        db.connectToDb(self._dbA)
         db.createTable("t1", "(i int)")
         raw_input("\nRun: 'sudo /etc/init.d/mysql stop', then press Enter to "
                  "continue...\n")
         db.createTable("t2", "(i int)")
-        db.dropDb(dbA)
+        db.dropDb(self._dbA)
 
 ####################################################################################
 def main():
