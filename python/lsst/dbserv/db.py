@@ -31,9 +31,11 @@ Known issues:
  * none.
 """
 
+import ConfigParser
 import logging
 import _mysql_exceptions
 import MySQLdb
+import os.path
 import StringIO
 import subprocess
 from datetime import datetime
@@ -53,6 +55,7 @@ class DbException(Exception):
     ERR_DB_EXISTS          = 1510
     ERR_DB_DOES_NOT_EXIST  = 1515
     ERR_INVALID_DB_NAME    = 1520
+    ERR_INVALID_OPT_FILE   = 1522
     ERR_MISSING_CON_INFO   = 1525
     ERR_MYSQL_CONNECT      = 1530
     ERR_MYSQL_DISCONN      = 1535
@@ -79,6 +82,7 @@ class DbException(Exception):
             DbException.ERR_DB_EXISTS: ("Database already exists."),
             DbException.ERR_DB_DOES_NOT_EXIST: ("Database does not exist."),
             DbException.ERR_INVALID_DB_NAME: ("Invalid database name."),
+            DbException.ERR_INVALID_OPT_FILE: ("Can't open the option file."),
             DbException.ERR_MISSING_CON_INFO: ("Missing connection information -- "
                                         "must provide either host/port or socket."),
             DbException.ERR_MYSQL_CONNECT: ("Unable to connect to mysql server."),
@@ -118,8 +122,8 @@ class Db:
     is specified, it will still try to retry using that socket.
     """
 
-    def __init__(self, user, passwd=None, host=None, port=None, 
-                 socket=None, dbName=None, maxRetryCount=12*60):
+    def __init__(self, user=None, passwd=None, host=None, port=None, socket=None,
+                 dbName=None, optionFile=None, maxRetryCount=12*60):
         """
         Initialize the shared data. Raise exception if arguments are wrong.
 
@@ -129,43 +133,65 @@ class Db:
         @param port       Port number.
         @param socket     Socket.
         @param dbName     Database name.
+        @param optionFile Option file. Note that it can also contain parameters
+                          like host/port/user/password.
         @param maxRetryCount Number of retries in case there is connection
                           failure. There is a 5 sec sleep between each retry.
                           Default is one hour: 12*60 * 5 sec sleep
 
-        Initialize shared state. Raise exception if both host/port AND socket are
-        invalid.
+        Initialize shared state. If multiple ways of connecting are specified,
+        the order is: socket passed through parameter is tried first, socket 
+        passed through optionFile second, host/port passed through parameter third,
+        and host/port through optionFile last.
+        Raise exception if both host/port AND socket are invalid.
         """
         self._conn = None
         self._logger = logging.getLogger("DBWRAP")
-        if socket is None and (host is None or port<1 or port>65535):
-            if host is None:
-                self._logger.error(
-                    "Missing connection info, socket=None, host=None")
-                raise DbException(DbException.ERR_MISSING_CON_INFO, 
-                                  "invalid socket and host name")
-            else:
-                self._logger.error("Missing connection info, socket=None, " +
-                                   "port is invalid (must be within 1-65534)")
-                raise DbException(DbException.ERR_MISSING_CON_INFO, 
-                                  "invalid port number, must be within 1-65534")
         self._isConnectedToDb = False
         self._maxRetryCount = maxRetryCount
         self._curRetryCount = 0
         # mysql defaults to socket if it sees "localhost". 127.0.0.1 will force TCP.
-        if host == "localhost":
-            host = "127.0.0.1"
-            self._logger.warning('"localhost" specified, switching to 127.0.0.1')
+        self._socket = socket
         self._host = host
         self._port = port
         self._user = user
         self._passwd = passwd
-        self._socket = socket
+        self._optionFile = optionFile
         self._defaultDbName = dbName
 
+        if self._optionFile is not None:
+            if optionFile.startswith('~'): 
+                self._optionFile = os.path.expanduser(optionFile)
+            ret = self._parseOptionFile()
+            if ret["socket"  ] and socket is None: self._socket = ret["socket"]
+            if ret["host"    ] and host   is None: self._host   = ret["host"]
+            if ret["port"    ] and port   is None: self._port   = ret["port"]
+            if ret["user"    ] and user   is None: self._user   = ret["user"]
+            if ret["password"] and passwd is None: self._passwd = ret["password"]
+        if self._passwd is None:
+            self._passwd = ''
+        if self._host == "localhost":
+            self._host = "127.0.0.1"
+            self._logger.warning('"localhost" specified, switching to 127.0.0.1')
         # MySQL connection-related error numbers. 
         # These are typically recoverable by reconnecting.
         self._mysqlConnErrors = [2002, 2006] 
+
+        if self._user is None:
+            self._logger.error("Missing user credentials: user is None.")
+            raise DbException(DbException.ERR_MISSING_CON_INFO,["invalid username"])
+        if self._socket is None and \
+                (self._host is None or self._port<1 or port>65535):
+            if self._host is None:
+                self._logger.error("Missing connection info: " +
+                                   "socket=None, host=None")
+                raise DbException(DbException.ERR_MISSING_CON_INFO, 
+                                  ["invalid socket and host name"])
+            else:
+                self._logger.error("Missing connection info, socket=None, " +
+                                   "port is invalid (must be within 1-65534)")
+                raise DbException(DbException.ERR_MISSING_CON_INFO, 
+                                  ["invalid port number, must be within 1-65534"])
 
     def __del__(self):
         """
@@ -198,8 +224,10 @@ class Db:
             self._conn = MySQLdb.connect(user=self._user,
                                          passwd=self._passwd,
                                          unix_socket=self._socket)
+#                                         read_default_file=self._optionFile)
         except MySQLdb.Error as e:
-            self._logger.info("connect through socket failed")
+            self._logger.info("connect through socket failed, error %d: %s." % \
+                                  (e.args[0], e.args[1]))
             if self._host is not None and self._port is not None:
                 self._connectThroughPort()
             else:
@@ -214,6 +242,7 @@ class Db:
                                          passwd=self._passwd,
                                          host=self._host,
                                          port=self._port)
+                                         #read_default_file=self._optionFile)
         except MySQLdb.Error as e:
             self._logger.info("connect through host:port failed")
             self._handleConnectionFailure(e.args[0], e.args[1])
@@ -603,3 +632,29 @@ class Db:
         self._logger.debug("resetting default db name")
         self._defaultDbName = None
         self.disconnect()
+
+    def _parseOptionFile(self):
+        """
+        Returns a dictionary containing values for socket, host, port, user and
+        password specified through optionFile (None for each value not given.)
+        """
+        # it is better to parse the option file and explicitly check if socket,
+        # host, port, username etc are valid, otherwise mysql will try to default
+        # to standard socket if something is wrong with the option file, and we
+        # don't want any surprises.
+        ret = {}
+        options = ("socket", "host", "port", "user", "password")
+        for o in options: ret[o] = None
+
+        if not os.path.isfile(self._optionFile):
+            self._logger.error("Can't find '%s'." % self._optionFile)
+            raise DbException(DbException.ERR_INVALID_OPT_FILE, [self._optionFile])
+
+        cnf = ConfigParser.ConfigParser()
+        cnf.read(self._optionFile)
+        if cnf.has_section("client"):
+            for o in options:
+                if cnf.has_option("client", o): ret[o] = cnf.get("client", o)
+        self._logger.info("connection info from option file '%s': %s" % \
+                              (self._optionFile, str(ret)))
+        return ret

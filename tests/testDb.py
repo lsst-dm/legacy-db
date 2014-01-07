@@ -31,6 +31,8 @@ Known issues and todos:
 """
 
 import logging
+import os
+import tempfile
 import time
 import unittest
 from db import Db, DbException
@@ -53,7 +55,6 @@ class TestDb(unittest.TestCase):
         if db.checkDbExists(dbB): self._db.dropDb(dbB)
         if db.checkDbExists(dbC): self._db.dropDb(dbC)
         db.disconnect()
-        pass
 
     def testBasicHostPortConn(self):
         """
@@ -76,6 +77,12 @@ class TestDb(unittest.TestCase):
         db.createDb(dbA)
         db.connectToDb(dbA)
         db.createTable("t1", "(i int)")
+        db.dropDb(dbA)
+        db.disconnect()
+
+    def testBasicOptionFileConn(self):
+        db = Db(optionFile="~/.lsst.my.cnf")
+        db.createDb(dbA)
         db.dropDb(dbA)
         db.disconnect()
 
@@ -126,6 +133,32 @@ class TestDb(unittest.TestCase):
         db = Db(theUser, thePass, theHost, thePort, "/x/sock", maxRetryCount=0)
         db.connectToMySQLServer()
         db.disconnect()
+
+    def testConn_invalidOptionFile(self):
+        try:
+            db = Db(optionFile="/tmp/dummy.opt.file.xyz")
+        except DbException:
+            pass
+
+    def testConn_badOptionFile(self):
+        # start with an empty file
+        f, fN = tempfile.mkstemp(suffix=".cnf", dir="/tmp", text="True")
+        try:
+            db = Db(optionFile=fN)
+            db.connectToMySQLServer()
+        except DbException:
+            pass
+        # add socket only
+        f = open(fN,'w')
+        f.write('[client]\n')
+        f.write('socket = /tmp/sth/wrong.sock\n')
+        f.close()
+        try:
+            db = Db(optionFile=fN)
+            db.connectToMySQLServer()
+        except DbException:
+            pass
+        os.remove(fN)
 
     def testIsConnected(self):
         """
