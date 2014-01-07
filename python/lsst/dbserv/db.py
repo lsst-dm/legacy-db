@@ -183,7 +183,7 @@ class Db:
             self._logger.error("Missing user credentials: user is None.")
             raise DbException(DbException.ERR_MISSING_CON_INFO,["invalid username"])
         if self._socket is None and \
-                (self._host is None or self._port<1 or port>65535):
+                (self._host is None or self._port<1 or self._port>65535):
             if self._host is None:
                 self._logger.error("Missing connection info: " +
                                    "socket=None, host=None")
@@ -191,7 +191,8 @@ class Db:
                                   ["invalid socket and host name"])
             else:
                 self._logger.error("Missing connection info, socket=None, " +
-                                   "port is invalid (must be within 1-65534)")
+                                   "port is invalid (must be within 1-65534), " +
+                                   "got: %d" % self._port)
                 raise DbException(DbException.ERR_MISSING_CON_INFO, 
                                   ["invalid port number, must be within 1-65534"])
 
