@@ -168,6 +168,8 @@ class Db:
             if ret["port"    ] and port   is None: self._port   = ret["port"]
             if ret["user"    ] and user   is None: self._user   = ret["user"]
             if ret["password"] and passwd is None: self._passwd = ret["password"]
+        if self._port:
+            self._port = int(self._port)
         if self._passwd is None:
             self._passwd = ''
         if self._host == "localhost":
