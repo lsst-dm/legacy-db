@@ -8,4 +8,5 @@ import glob
 import lsst.tests
 
 tests = lsst.tests.Control(env, verbose = True)
-tests.run("timeDb.py")
+tests.run("testDbLocal.py")
+tests.run("testDbRemote.py")

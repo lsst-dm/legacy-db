@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 # LSST Data Management System
-# Copyright 2008-2013 LSST Corporation.
+# Copyright 2008-2014 LSST Corporation.
 # 
 # This product includes software developed by the
 # LSST Project (http://www.lsst.org/).
@@ -600,7 +600,7 @@ class Db:
                     self.connectToDb(self.getDefaultDbName())
                 return self._execCommand(command, nRowsRet)
             else:
-                self._logger.error("Command failed. ", msg)
+                self._logger.error("Command failed. " + msg)
                 raise DbException(DbException.ERR_MYSQL_ERROR, [msg])
         if nRowsRet == 0:
             ret = ""
