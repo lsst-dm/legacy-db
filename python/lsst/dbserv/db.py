@@ -48,8 +48,8 @@ class DbException(Exception):
     Exception raised by Db class.
     """
 
-    # note: error numbered 1000 - 1200 are used by mysql,
-    # see mysqld_ername.h in mysql source code
+    # note: error numbered 1000 - 1200 are used by MySQL,
+    # see mysqld_ername.h in MySQL source code
     ERR_CANT_CONNECT_TO_DB = 1500
     ERR_CANT_EXEC_SCRIPT   = 1505
     ERR_DB_EXISTS          = 1510
@@ -57,9 +57,9 @@ class DbException(Exception):
     ERR_INVALID_DB_NAME    = 1520
     ERR_INVALID_OPT_FILE   = 1522
     ERR_MISSING_CON_INFO   = 1525
-    ERR_MYSQL_CONNECT      = 1530
-    ERR_MYSQL_DISCONN      = 1535
-    ERR_MYSQL_ERROR        = 1540
+    ERR_SERVER_CONNECT     = 1530
+    ERR_SERVER_DISCONN     = 1535
+    ERR_SERVER_ERROR       = 1540
     ERR_NO_DB_SELECTED     = 1545
     ERR_NOT_CONNECTED      = 1550
     ERR_TB_DOES_NOT_EXIST  = 1555
@@ -85,12 +85,13 @@ class DbException(Exception):
             DbException.ERR_INVALID_OPT_FILE: ("Can't open the option file."),
             DbException.ERR_MISSING_CON_INFO: ("Missing connection information -- "
                                         "must provide either host/port or socket."),
-            DbException.ERR_MYSQL_CONNECT: ("Unable to connect to mysql server."),
-            DbException.ERR_MYSQL_DISCONN: ("Failed to commit transaction and "
-                                "disconnect from mysql server."),
-            DbException.ERR_MYSQL_ERROR: ("Internal MySQL error."),
+            DbException.ERR_SERVER_CONNECT: 
+                                    ("Unable to connect to the database server."),
+            DbException.ERR_SERVER_DISCONN: ("Failed to commit transaction and "
+                                "disconnect from the database server."),
+            DbException.ERR_SERVER_ERROR: ("Internal database server error."),
             DbException.ERR_NO_DB_SELECTED: ("No database selected."),
-            DbException.ERR_NOT_CONNECTED: ("Not connected to MySQL."),
+            DbException.ERR_NOT_CONNECTED: "Not connected to the database server.",
             DbException.ERR_TB_DOES_NOT_EXIST: ("Table does not exist."),
             DbException.ERR_TB_EXISTS: ("Table already exists."),
             DbException.ERR_INTERNAL: ("Internal error.")
@@ -150,7 +151,7 @@ class Db:
         self._isConnectedToDb = False
         self._maxRetryCount = maxRetryCount
         self._curRetryCount = 0
-        # mysql defaults to socket if it sees "localhost". 127.0.0.1 will force TCP.
+        # MySQL defaults to socket if it sees "localhost". 127.0.0.1 will force TCP.
         self._socket = socket
         self._host = host
         self._port = port
@@ -202,9 +203,9 @@ class Db:
         """
         self.disconnect()
 
-    def connectToMySQLServer(self):
+    def connectToDbServer(self):
         """
-        Connect to MySQL Server. Socket has higher priority than host/port.
+        Connect to Database Server. Socket has higher priority than host/port.
         """
         while self._curRetryCount <= self._maxRetryCount:
             if self.checkIsConnected():
@@ -266,16 +267,16 @@ class Db:
 
     def _handleConnectionFailure(self, e0, e1):
         self._closeConnection()
-        msg = "Couldn't connect to MySQL using socket "
+        msg = "Couldn't connect to database server using socket "
         msg += "'%s' or host:port: '%s:%s'. Error: %d: %s." % \
             (self._socket, self._host, self._port, e0, e1)
         self._curRetryCount += 1
         if e0 in self._mysqlConnErrors and self._curRetryCount<=self._maxRetryCount:
-            self._logger.info("Waiting for mysqld to come back...")
+            self._logger.info("Waiting for database server to come back...")
             sleep(3)
         else:
             self._logger.error("Giving up on connecting")
-            raise DbException(DbException.ERR_MYSQL_CONNECT, [msg])
+            raise DbException(DbException.ERR_SERVER_CONNECT, [msg])
 
     def disconnect(self):
         """
@@ -289,8 +290,8 @@ class Db:
         except MySQLdb.Error, e:
             msg = "Failed to disconnect %d: %s." % (e.args[0], e.args[1])
             self._logger.error(msg)
-            raise DbException(DbException.ERR_MYSQL_DISCONN, [msg])
-        self._logger.debug("MySQL connection closed.")
+            raise DbException(DbException.ERR_SERVER_DISCONN, [msg])
+        self._logger.debug("Connection to database server closed.")
         self._conn = None
         self._isConnectedToDb = False
 
@@ -307,7 +308,7 @@ class Db:
         dbName = self._getDefaultDbNameIfNeeded(dbName)
         if self.checkIsConnectedToDb(dbName): return
         try:
-            self.connectToMySQLServer()
+            self.connectToDbServer()
             self._conn.select_db(dbName)
         except MySQLdb.Error, e:
             self._logger.error("Failed to select db '%s'." % dbName)
@@ -358,7 +359,7 @@ class Db:
         """
         if dbName is None and self.getDefaultDbName() is None: return False
         dbName = self._getDefaultDbNameIfNeeded(dbName)
-        self.connectToMySQLServer()
+        self.connectToDbServer()
         cmd = "SELECT COUNT(*) FROM information_schema.schemata "
         cmd += "WHERE schema_name = '%s'" % dbName
         count = self.execCommand1(cmd)
@@ -376,7 +377,7 @@ class Db:
         """
         if dbName is None: 
             raise DbException(DbException.ERR_INVALID_DB_NAME, ["<None>"])
-        self.connectToMySQLServer()
+        self.connectToDbServer()
         if self.checkDbExists(dbName):
             raise DbException(DbException.ERR_DB_EXISTS, [dbName])
         self.execCommand0("CREATE DATABASE %s" % dbName)
@@ -393,7 +394,7 @@ class Db:
         database if it is the default database.
         """
         dbName = self._getDefaultDbNameIfNeeded(dbName)
-        self.connectToMySQLServer()
+        self.connectToDbServer()
         if not self.checkDbExists(dbName):
             raise DbException(DbException.ERR_DB_DOES_NOT_EXIST, [dbName])
         self.execCommand0("DROP DATABASE %s" % dbName)
@@ -415,7 +416,7 @@ class Db:
         """
         if dbName is None and self.getDefaultDbName() is None: return False
         dbName = self._getDefaultDbNameIfNeeded(dbName)
-        self.connectToMySQLServer()
+        self.connectToDbServer()
         cmd = "SELECT COUNT(*) FROM information_schema.tables "
         cmd += "WHERE table_schema = '%s' AND table_name = '%s'" % \
                (dbName, tableName)
@@ -435,7 +436,7 @@ class Db:
         connection not open already. Raises exception if the table already exists.
         """
         dbName = self._getDefaultDbNameIfNeeded(dbName)
-        self.connectToMySQLServer()
+        self.connectToDbServer()
         if self.checkTableExists(tableName, dbName):
             raise DbException(DbException.ERR_TB_EXISTS)
         self.execCommand0("CREATE TABLE %s.%s %s" % (dbName,tableName,tableSchema))
@@ -452,7 +453,7 @@ class Db:
         connection not open already. Raises exception if the table does not exist.
         """
         dbName = self._getDefaultDbNameIfNeeded(dbName)
-        self.connectToMySQLServer()
+        self.connectToDbServer()
         if not self.checkTableExists(tableName, dbName):
             raise DbException(DbException.ERR_TB_DOES_NOT_EXIST)
         self.execCommand0("DROP TABLE %s.%s %s" % (dbName, tableName, tableSchema))
@@ -471,7 +472,7 @@ class Db:
         table does not exist.
         """
         dbName = self._getDefaultDbNameIfNeeded(dbName)
-        self.connectToMySQLServer()
+        self.connectToDbServer()
         if not self.checkTableExists(tableName, dbName):
             raise DbException(DbException.ERR_TB_DOES_NOT_EXIST)
         ret = self.execCommand1("SELECT COUNT(*) FROM information_schema.tables "
@@ -489,7 +490,7 @@ class Db:
         @return string    Contents of the table.
         """
         dbName = self._getDefaultDbNameIfNeeded(dbName)
-        self.connectToMySQLServer()
+        self.connectToDbServer()
         ret = self.execCommandN("SELECT * FROM %s.%s" % (dbName, tableName))
         s = StringIO.StringIO()
         s.write(tableName)
@@ -540,17 +541,17 @@ class Db:
 
     def execCommand0(self, command):
         """
-        Execute mysql command that returns no rows.
+        Execute SQL command that returns no rows.
 
-        @param command    MySQL command that returns no rows.
+        @param command    SQL command that returns no rows.
         """
         self._execCommand(command, 0)
 
     def execCommand1(self, command):
         """
-        Execute mysql command that returns one row.
+        Execute SQL command that returns one row.
 
-        @param command    MySQL command that returns one row.
+        @param command    SQL command that returns one row.
 
         @return string    Result.
         """
@@ -558,9 +559,9 @@ class Db:
 
     def execCommandN(self, command):
         """
-        Execute mysql command that returns more than one row.
+        Execute SQL command that returns more than one row.
 
-        @param command    MySQL command that returns more than one row.
+        @param command    SQL command that returns more than one row.
 
         @return string    Result.
         """
@@ -568,19 +569,19 @@ class Db:
 
     def _execCommand(self, command, nRowsRet):
         """
-        Execute mysql command which return any number of rows.
+        Execute SQL command which return any number of rows.
 
-        @param command    MySQL command.
+        @param command    SQL command.
         @param nRowsRet   Expected number of returned rows (valid: '0', '1', 'n').
 
         @return string Results from the query. Empty string if not results.
 
-        Execute mysql command which return any number of rows. If this function
-        is called after mysqld was restarted, or if the connection timed out
-        because of long period of inactivity, the command will fail. This function
-        catches such problems and recovers by reconnecting and retrying.
+        If this function is called after database server was restarted, or if the
+        connection timed out because of long period of inactivity, the command will
+        fail. This function catches such problems and recovers by reconnecting and
+        retrying.
         """
-        self.connectToMySQLServer()
+        self.connectToDbServer()
         if self._conn is None:
             raise DbException(DbException.ERR_INTERNAL, 
                               ["self._conn is <None> in _execCommand"])
@@ -589,7 +590,7 @@ class Db:
             self._logger.debug("Executing '%s'." % command)
             cursor.execute(command)
         except (MySQLdb.Error, MySQLdb.OperationalError) as e:
-            msg = "MySQL Error [%d]: %s." % (e.args[0],e.args[1])
+            msg = "Database Error [%d]: %s." % (e.args[0],e.args[1])
             if e.args[0] in self._mysqlConnErrors:
                 self._logger.info(
                     "%s Connection-related failure, trying to recover..." % msg)
@@ -601,7 +602,7 @@ class Db:
                 return self._execCommand(command, nRowsRet)
             else:
                 self._logger.error("Command failed. " + msg)
-                raise DbException(DbException.ERR_MYSQL_ERROR, [msg])
+                raise DbException(DbException.ERR_SERVER_ERROR, [msg])
         if nRowsRet == 0:
             ret = ""
         elif nRowsRet == 1:
@@ -655,7 +656,7 @@ class Db:
         password specified through optionFile (None for each value not given.)
         """
         # it is better to parse the option file and explicitly check if socket,
-        # host, port, username etc are valid, otherwise mysql will try to default
+        # host, port, username etc are valid, otherwise MySQL will try to default
         # to standard socket if something is wrong with the option file, and we
         # don't want any surprises.
         ret = {}
