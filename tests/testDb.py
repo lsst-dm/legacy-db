@@ -23,25 +23,27 @@
 """
 This is a unittest for the Db class.
 
+It requires ~/.lsst.my.cnf config file with the following:
+[client]
+user     = <username>
+password = <password> # this can be ommitted if password is empty
+host     = <host>
+port     = <port>
+socket   = <socket>
+
 @author  Jacek Becla, SLAC
 
-
 Known issues and todos:
- - make the connection parameters configurable
+ * non-unique db name
 """
 
+import ConfigParser
 import logging
 import os
 import tempfile
 import time
 import unittest
 from db import Db, DbException
-
-theHost = 'localhost'
-thePort = 3306
-theUser = 'becla'
-thePass  = ''
-theSock  = '/var/run/mysqld/mysqld.sock'
 
 dbA = "_dbWrapperTestDb_A"
 dbB = "_dbWrapperTestDb_B"
@@ -50,18 +52,39 @@ dbC = "_dbWrapperTestDb_C"
 
 class TestDb(unittest.TestCase):
     def setUp(self):
-        db = Db(theUser, thePass, theHost, thePort, theSock)
+        self._initCredentials("~/.lsst.my.cnf")
+        db = Db(self._user, self._pass, self._host, self._port, self._sock)
         if db.checkDbExists(dbA): self._db.dropDb(dbA)
         if db.checkDbExists(dbB): self._db.dropDb(dbB)
         if db.checkDbExists(dbC): self._db.dropDb(dbC)
         db.disconnect()
+
+    def _initCredentials(self, fN):
+        if fN.startswith('~'): fN = os.path.expanduser(fN)
+        if not os.path.isfile(fN):
+            raise Exception("Required file '%s' not found" % fN)
+        cnf = ConfigParser.ConfigParser()
+        cnf.read(fN)
+        if not cnf.has_section("client"):
+            raise Exception("Missing section 'client' in file '%s'" % fN)
+        for o in ("socket", "host", "port", "user"):
+            if not cnf.has_option("client", o):
+                raise Exception("Missing option '%s' in file '%s'" % (o, fN))
+        self._sock = cnf.get("client", "socket")
+        self._host = cnf.get("client", "host")
+        self._port = cnf.get("client", "port")
+        self._user = cnf.get("client", "user")
+        if cnf.has_option("client", "password"):
+            self._pass = cnf.get("client", "password")
+        else:
+            self._pass = ''
 
     def testBasicHostPortConn(self):
         """
         Basic test: connect through port, create db and connect to it, create one
         table, drop the db, disconnect.
         """
-        db = Db(theUser, thePass, theHost, thePort)
+        db = Db(self._user, self._pass, self._host, self._port)
         db.createDb(dbA)
         db.connectToDb(dbA)
         db.createTable("t1", "(i int)")
@@ -73,7 +96,7 @@ class TestDb(unittest.TestCase):
         Basic test: connect through socket, create db and connect to it, create one
         table, drop the db, disconnect.
         """
-        db = Db(theUser, thePass, socket=theSock)
+        db = Db(self._user, self._pass, socket=self._sock)
         db.createDb(dbA)
         db.connectToDb(dbA)
         db.createTable("t1", "(i int)")
@@ -87,50 +110,51 @@ class TestDb(unittest.TestCase):
         db.disconnect()
 
     def testConn_invalidHost(self):
-        db = Db(theUser, thePass, "invalidHost", thePort)
+        db = Db(self._user, self._pass, "invalidHost", self._port)
         self.assertRaises(DbException, db.connectToMySQLServer)
 
     def testConn_invalidHost(self):
-        db = Db(theUser, thePass, "dummyHost", 3036)
+        db = Db(self._user, self._pass, "dummyHost", 3036)
         # Disabling because this will actually work: it will default 
         # to socket if the host is "localhost". 
         # See known issues in db.py. 
         self.assertRaises(DbException, db.connectToMySQLServer)
 
     def testConn_invalidPortNo(self):
-        self.assertRaises(DbException, Db, theUser, thePass, theHost, 987654)
+        self.assertRaises(DbException, Db, self._user, self._pass,self._host,987654)
 
     def testConn_wrongPortNo(self):
-        db = Db(theUser, thePass, theHost, 1579)
+        db = Db(self._user, self._pass, self._host, 1579)
         self.assertRaises(DbException, db.connectToMySQLServer)
 
     def testConn_invalidUserName(self):
-        db = Db("hackr", thePass, theHost, thePort)
+        db = Db("hackr", self._pass, self._host, self._port)
         # Disabling because this can work, depending on mysql 
         # configuration, for example, it can default to ''@localhost
         # self.assertRaises(DbException, db.connectToMySQLServer)
-        db = Db(theUser, "!MyPw", theHost, thePort)
+        db = Db(self._user, "!MyPw", self._host, self._port)
         # self.assertRaises(DbException, db.connectToMySQLServer)
 
     def testConn_invalidSocket(self):
         # make sure retry is disabled, otherwise it wil try to reconnect 
         # (it will assume the server is down and socket valid).
-        db = Db(theUser, thePass, socket="/x/sock", maxRetryCount=0)
+        db = Db(self._user, self._pass, socket="/x/sock", maxRetryCount=0)
         self.assertRaises(DbException, db.connectToMySQLServer)
 
     def testConn_badHostPortGoodSocket(self):
         # invalid host, but good socket
-        db = Db(theUser, thePass, "invalidHost", thePort, theSock)
+        db = Db(self._user, self._pass, "invalidHost", self._port, self._sock)
         db.connectToMySQLServer()
         db.disconnect()
         # invalid port but good socket
-        db = Db(theUser, thePass, theHost, 9876543, theSock)
+        db = Db(self._user, self._pass, self._host, 9876543, self._sock)
         db.connectToMySQLServer()
         db.disconnect()
         # invalid socket, but good host/port
         # make sure retry is disabled, otherwise it will try to reconnect
         # (it will assume the server is down and socket valid).
-        db = Db(theUser, thePass, theHost, thePort, "/x/sock", maxRetryCount=0)
+        db = Db(self._user, self._pass, self._host, self._port, "/x/sock",
+                maxRetryCount=0)
         db.connectToMySQLServer()
         db.disconnect()
 
@@ -164,14 +188,14 @@ class TestDb(unittest.TestCase):
         """
         Test isConnected and isConnectedToDb.
         """
-        db = Db(theUser, thePass, socket=theSock)
+        db = Db(self._user, self._pass, socket=self._sock)
         db.disconnect()
         # not connected at all
         self.assertFalse(db.checkIsConnected())
         self.assertFalse(db.checkIsConnectedToDb(dbA))
         self.assertFalse(db.checkIsConnectedToDb(dbB))
         # just initialize state, still not connected at all
-        db = Db(theUser, thePass, theHost, thePort, theSock)
+        db = Db(self._user, self._pass, self._host, self._port, self._sock)
         self.assertFalse(db.checkIsConnected())
         self.assertFalse(db.checkIsConnectedToDb(dbA))
         self.assertFalse(db.checkIsConnectedToDb(dbB))
@@ -200,7 +224,7 @@ class TestDb(unittest.TestCase):
         """
         Try interleaving operations on multiple databases.
         """
-        db = Db(theUser, thePass, theHost, thePort, theSock)
+        db = Db(self._user, self._pass, self._host, self._port, self._sock)
         db.createDb(dbA)
         db.createDb(dbB)
         db.createDb(dbC)
@@ -221,7 +245,7 @@ class TestDb(unittest.TestCase):
         """
         Test creating db/table that already exists (in default db).
         """
-        db = Db(theUser, thePass, theHost, thePort, theSock)
+        db = Db(self._user, self._pass, self._host, self._port, self._sock)
         db.createDb(dbA)
         self.assertRaises(DbException, db.createDb, dbA)
         db.connectToDb(dbA)
@@ -236,7 +260,7 @@ class TestDb(unittest.TestCase):
         """
         Test creating db/table that already exists (in non default db).
         """
-        db = Db(theUser, thePass, theHost, thePort, theSock)
+        db = Db(self._user, self._pass, self._host, self._port, self._sock)
         db.createDb(dbA)
         self.assertRaises(DbException, db.createDb, dbA)
         db.connectToDb(dbA)
@@ -262,7 +286,7 @@ class TestDb(unittest.TestCase):
         """
         Test checkExist for databases and tables.
         """
-        db = Db(theUser, thePass, theHost, thePort, theSock)
+        db = Db(self._user, self._pass, self._host, self._port, self._sock)
         self.assertFalse(db.checkDbExists("bla"))
         self.assertFalse(db.checkTableExists("bla"))
         self.assertFalse(db.checkTableExists("bla", "blaBla"))
@@ -292,7 +316,7 @@ class TestDb(unittest.TestCase):
         """
         Testing functionality related to views.
         """
-        db = Db(theUser, thePass, theHost, thePort, theSock)
+        db = Db(self._user, self._pass, self._host, self._port, self._sock)
         db.createDb(dbA)
         db.connectToDb(dbA)
         db.createTable("t1", "(i int, j int)")
@@ -306,7 +330,7 @@ class TestDb(unittest.TestCase):
         """
         Testing recovery from lost connection.
         """
-        db = Db(theUser, thePass, theHost, thePort, theSock, maxRetryCount=3)
+        db = Db(self._user, self._pass, self._host, self._port, self._sock, maxRetryCount=3)
         db.createDb(dbA)
         db.connectToDb(dbA)
         db.createTable("t1", "(i int)")
