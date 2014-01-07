@@ -55,9 +55,9 @@ class TestDbLocal(unittest.TestCase):
         self._dbC = "%s_dbWrapperTestDb_C" % self._user
 
         db = Db(self._user, self._pass, self._host, self._port, self._sock)
-        if db.checkDbExists(self._dbA): self._db.dropDb(self._dbA)
-        if db.checkDbExists(self._dbB): self._db.dropDb(self._dbB)
-        if db.checkDbExists(self._dbC): self._db.dropDb(self._dbC)
+        if db.checkDbExists(self._dbA): db.dropDb(self._dbA)
+        if db.checkDbExists(self._dbB): db.dropDb(self._dbB)
+        if db.checkDbExists(self._dbC): db.dropDb(self._dbC)
         db.disconnect()
 
     def _initCredentials(self):
