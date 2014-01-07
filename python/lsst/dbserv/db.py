@@ -66,6 +66,26 @@ class DbException(Exception):
     ERR_TB_EXISTS          = 1560
     ERR_INTERNAL           = 9999
 
+    _errors = {
+        ERR_CANT_CONNECT_TO_DB: ("Can't connect to database."),
+        ERR_CANT_EXEC_SCRIPT: ("Can't execute script."),
+        ERR_DB_EXISTS: ("Database already exists."),
+        ERR_DB_DOES_NOT_EXIST: ("Database does not exist."),
+        ERR_INVALID_DB_NAME: ("Invalid database name."),
+        ERR_INVALID_OPT_FILE: ("Can't open the option file."),
+        ERR_MISSING_CON_INFO: ("Missing connection information -- "
+                               "must provide either host/port or socket."),
+        ERR_SERVER_CONNECT: "Unable to connect to the database server.",
+        ERR_SERVER_DISCONN: ("Failed to commit transaction and "
+                             "disconnect from the database server."),
+        ERR_SERVER_ERROR: ("Internal database server error."),
+        ERR_NO_DB_SELECTED: ("No database selected."),
+        ERR_NOT_CONNECTED: "Not connected to the database server.",
+        ERR_TB_DOES_NOT_EXIST: ("Table does not exist."),
+        ERR_TB_EXISTS: ("Table already exists."),
+        ERR_INTERNAL: ("Internal error.")
+    }
+
     def __init__(self, errNo, extraMsgList=None):
         """
         Initialize the shared data.
@@ -76,35 +96,14 @@ class DbException(Exception):
         self._errNo = errNo
         self._extraMsgList = extraMsgList
 
-        self._errors = {
-            DbException.ERR_CANT_CONNECT_TO_DB: ("Can't connect to database."),
-            DbException.ERR_CANT_EXEC_SCRIPT: ("Can't execute script."),
-            DbException.ERR_DB_EXISTS: ("Database already exists."),
-            DbException.ERR_DB_DOES_NOT_EXIST: ("Database does not exist."),
-            DbException.ERR_INVALID_DB_NAME: ("Invalid database name."),
-            DbException.ERR_INVALID_OPT_FILE: ("Can't open the option file."),
-            DbException.ERR_MISSING_CON_INFO: ("Missing connection information -- "
-                                        "must provide either host/port or socket."),
-            DbException.ERR_SERVER_CONNECT: 
-                                    ("Unable to connect to the database server."),
-            DbException.ERR_SERVER_DISCONN: ("Failed to commit transaction and "
-                                "disconnect from the database server."),
-            DbException.ERR_SERVER_ERROR: ("Internal database server error."),
-            DbException.ERR_NO_DB_SELECTED: ("No database selected."),
-            DbException.ERR_NOT_CONNECTED: "Not connected to the database server.",
-            DbException.ERR_TB_DOES_NOT_EXIST: ("Table does not exist."),
-            DbException.ERR_TB_EXISTS: ("Table already exists."),
-            DbException.ERR_INTERNAL: ("Internal error.")
-        }
-
     def __str__(self):
         """
         Return string representation of the error.
 
         @return string  Error message string, including all optional messages.
         """
-        msg = self._errors.get(self._errNo, 
-                               "Unrecognized database error: %d" % self._errNo)
+        msg = _errors.get(self._errNo,
+                          "Unrecognized database error: %d" % self._errNo)
         if self._extraMsgList is not None:
             for s in self._extraMsgList: msg += " (%s)" % s
         return msg
