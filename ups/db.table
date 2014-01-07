@@ -1,0 +1,5 @@
+setupRequired(python)
+setupRequired(mysqlclient)
+setupRequired(mysqlpython)
+
+envAppend(PYTHONPATH, ${PRODUCT_DIR}/python)
