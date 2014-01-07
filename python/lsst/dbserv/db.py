@@ -221,10 +221,16 @@ class Db:
             self._logger.info("connecting as '%s' using socket '%s', %d of %d" % \
                                   (self._user, self._socket, 
                                    self._curRetryCount, self._maxRetryCount))
-            self._conn = MySQLdb.connect(user=self._user,
-                                         passwd=self._passwd,
-                                         unix_socket=self._socket)
-#                                         read_default_file=self._optionFile)
+            if self._optionFile:
+                self._logger.info("using optionFile '%s'" % self._optionFile)
+                self._conn = MySQLdb.connect(user=self._user,
+                                             passwd=self._passwd,
+                                             unix_socket=self._socket,
+                                             read_default_file=self._optionFile)
+            else:
+                self._conn = MySQLdb.connect(user=self._user,
+                                             passwd=self._passwd,
+                                             unix_socket=self._socket)
         except MySQLdb.Error as e:
             self._logger.info("connect through socket failed, error %d: %s." % \
                                   (e.args[0], e.args[1]))
@@ -238,11 +244,18 @@ class Db:
             self._logger.info("connecting as '%s' using '%s:%s', %d of %d" % \
                                   (self._user, self._host, self._port,
                                    self._curRetryCount, self._maxRetryCount))
-            self._conn = MySQLdb.connect(user=self._user,
-                                         passwd=self._passwd,
-                                         host=self._host,
-                                         port=self._port)
-                                         #read_default_file=self._optionFile)
+            if self._optionFile:
+                self._logger.info("using optionFile '%s'" % self._optionFile)
+                self._conn = MySQLdb.connect(user=self._user,
+                                             passwd=self._passwd,
+                                             host=self._host,
+                                             port=self._port,
+                                             read_default_file=self._optionFile)
+            else:
+                self._conn = MySQLdb.connect(user=self._user,
+                                             passwd=self._passwd,
+                                             host=self._host,
+                                             port=self._port)
         except MySQLdb.Error as e:
             self._logger.info("connect through host:port failed")
             self._handleConnectionFailure(e.args[0], e.args[1])
