@@ -8,4 +8,4 @@ import glob
 import lsst.tests
 
 tests = lsst.tests.Control(env, verbose = True)
-tests.run("timeFuncs.py")
+tests.run("timeDb.py")
