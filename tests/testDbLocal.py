@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 # LSST Data Management System
-# Copyright 2013 LSST Corporation.
+# Copyright 2013-2014 LSST Corporation.
 # 
 # This product includes software developed by the
 # LSST Project (http://www.lsst.org/).
@@ -23,11 +23,11 @@
 """
 This is a unittest for the Db class.
 
-It requires ~/.lsst.my.cnf config file with the following:
+It requires ~/.lsst.testLocal.my.cnf config file with the following:
 [client]
 user     = <username>
 password = <password> # this can be ommitted if password is empty
-host     = <host>
+host     = localhost
 port     = <port>
 socket   = <socket>
 
@@ -45,9 +45,10 @@ import time
 import unittest
 from db import Db, DbException
 
-class TestDb(unittest.TestCase):
+class TestDbLocal(unittest.TestCase):
     def setUp(self):
-        self._initCredentials("~/.lsst.my.cnf")
+        self._credFile = "~/.lsst.testLocal.my.cnf"
+        self._initCredentials()
         self._dbA = "%s_dbWrapperTestDb_A" % self._user
         self._dbB = "%s_dbWrapperTestDb_B" % self._user
         self._dbC = "%s_dbWrapperTestDb_C" % self._user
@@ -58,17 +59,18 @@ class TestDb(unittest.TestCase):
         if db.checkDbExists(self._dbC): self._db.dropDb(self._dbC)
         db.disconnect()
 
-    def _initCredentials(self, fN):
-        if fN.startswith('~'): fN = os.path.expanduser(fN)
-        if not os.path.isfile(fN):
-            raise Exception("Required file '%s' not found" % fN)
+    def _initCredentials(self):
+        if self._credFile.startswith('~'): 
+            self._credFile = os.path.expanduser(self._credFile)
+        if not os.path.isfile(self._credFile):
+            raise Exception("Required file '%s' not found" % self._credFile)
         cnf = ConfigParser.ConfigParser()
-        cnf.read(fN)
+        cnf.read(self._credFile)
         if not cnf.has_section("client"):
-            raise Exception("Missing section 'client' in file '%s'" % fN)
+            raise Exception("Missing section 'client' in '%s'" % self._credFile)
         for o in ("socket", "host", "port", "user"):
             if not cnf.has_option("client", o):
-                raise Exception("Missing option '%s' in file '%s'" % (o, fN))
+                raise Exception("Missing option '%s' in '%s'" % (o,self._credFile))
         self._sock = cnf.get("client", "socket")
         self._host = cnf.get("client", "host")
         self._port = cnf.get("client", "port")
@@ -103,7 +105,7 @@ class TestDb(unittest.TestCase):
         db.disconnect()
 
     def testBasicOptionFileConn(self):
-        db = Db(optionFile="~/.lsst.my.cnf")
+        db = Db(optionFile=self._credFile)
         db.createDb(self._dbA)
         db.dropDb(self._dbA)
         db.disconnect()
