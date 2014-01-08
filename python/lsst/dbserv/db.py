@@ -123,7 +123,7 @@ class Db:
     """
 
     def __init__(self, user=None, passwd=None, host=None, port=None, socket=None,
-                 dbName=None, optionFile=None, maxRetryCount=12*60):
+                 dbName=None, optionFile=None, local_infile=0, maxRetryCount=12*60):
         """
         Initialize the shared data. Raise exception if arguments are wrong.
 
@@ -135,6 +135,7 @@ class Db:
         @param dbName     Database name.
         @param optionFile Option file. Note that it can also contain parameters
                           like host/port/user/password.
+        @param local_infile local_infile flag. Allowed values: 0, 1
         @param maxRetryCount Number of retries in case there is connection
                           failure. There is a 5 sec sleep between each retry.
                           Default is one hour: 12*60 * 5 sec sleep
@@ -158,6 +159,7 @@ class Db:
         self._passwd = passwd
         self._optionFile = optionFile
         self._defaultDbName = dbName
+        self._local_infile = local_infile
 
         if self._optionFile is not None:
             if optionFile.startswith('~'): 
@@ -229,11 +231,13 @@ class Db:
                 self._conn = MySQLdb.connect(user=self._user,
                                              passwd=self._passwd,
                                              unix_socket=self._socket,
-                                             read_default_file=self._optionFile)
+                                             read_default_file=self._optionFile,
+                                             local_infile=self._local_infile)
             else:
                 self._conn = MySQLdb.connect(user=self._user,
                                              passwd=self._passwd,
-                                             unix_socket=self._socket)
+                                             unix_socket=self._socket,
+                                             local_infile=self._local_infile)
         except MySQLdb.Error as e:
             self._logger.info("connect through socket failed, error %d: %s." % \
                                   (e.args[0], e.args[1]))
@@ -253,12 +257,14 @@ class Db:
                                              passwd=self._passwd,
                                              host=self._host,
                                              port=self._port,
-                                             read_default_file=self._optionFile)
+                                             read_default_file=self._optionFile,
+                                             local_infile=self._local_infile)
             else:
                 self._conn = MySQLdb.connect(user=self._user,
                                              passwd=self._passwd,
                                              host=self._host,
-                                             port=self._port)
+                                             port=self._port,
+                                             local_infile=self._local_infile)
         except MySQLdb.Error as e:
             self._logger.info("connect through host:port failed")
             self._handleConnectionFailure(e.args[0], e.args[1])
@@ -361,8 +367,7 @@ class Db:
         self.connectToDbServer()
         cmd = "SELECT COUNT(*) FROM information_schema.schemata "
         cmd += "WHERE schema_name = '%s'" % dbName
-        count = self.execCommand1(cmd)
-        return count[0] == 1
+        return 1 == self.execCommand1(cmd)
 
     def createDb(self, dbName):
         """
@@ -419,8 +424,7 @@ class Db:
         cmd = "SELECT COUNT(*) FROM information_schema.tables "
         cmd += "WHERE table_schema = '%s' AND table_name = '%s'" % \
                (dbName, tableName)
-        count = self.execCommand1(cmd)
-        return  count[0] == 1
+        return 1 == self.execCommand1(cmd)
 
     def createTable(self, tableName, tableSchema, dbName=None):
         """
@@ -474,10 +478,9 @@ class Db:
         self.connectToDbServer()
         if not self.checkTableExists(tableName, dbName):
             raise DbException(DbException.ERR_TB_DOES_NOT_EXIST)
-        ret = self.execCommand1("SELECT COUNT(*) FROM information_schema.tables "
-                                "WHERE table_schema='%s' AND table_name='%s' AND "
-                                "table_type=\'VIEW\'" % (dbName, tableName))
-        return ret[0]
+        return self.execCommand1("SELECT COUNT(*) FROM information_schema.tables "
+                                 "WHERE table_schema='%s' AND table_name='%s' AND "
+                                 "table_type=\'VIEW\'" % (dbName, tableName))
 
     def getTableContent(self, tableName, dbName=None):
         """
@@ -505,10 +508,9 @@ class Db:
         """
         Check if user <hostName>@<userName> exists.
         """
-        ret = self.execCommand1(
-            "SELECT COUNT(*) FROM mysql.user WHERE user='%s' AND host='%s'" %\
+        return 0 != self.execCommand1(
+            "SELECT COUNT(*) FROM mysql.user WHERE user='%s' AND host='%s'" % \
             (userName, hostName))
-        return ret[0] != 0
 
     def loadSqlScript(self, scriptPath, dbName):
         """
@@ -599,10 +601,11 @@ class Db:
             else:
                 self._logger.error("Command failed. " + msg)
                 raise DbException(DbException.ERR_SERVER_ERROR, [msg])
+
         if nRowsRet == 0:
             ret = ""
         elif nRowsRet == 1:
-            ret = cursor.fetchone()
+            ret = cursor.fetchone()[0]
             self._logger.debug("Got: %s" % str(ret))
         else:
             ret = cursor.fetchall()

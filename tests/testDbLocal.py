@@ -338,6 +338,34 @@ class TestDbLocal(unittest.TestCase):
         db.dropDb(self._dbA)
         db.dropDb(self._dbB)
 
+    def testLoadDataInFile(self):
+        """
+        Testing "LOAD DATA INFILE..."
+        """
+        f, fN = tempfile.mkstemp(suffix=".csv", dir="/tmp", text="True")
+        f = open(fN,'w')
+        f.write('1\n2\n3\n4\n4\n4\n5\n3\n')
+        f.close()
+
+        db = Db(self._user, self._pass, socket=self._sock, local_infile=1)
+        db.createDb(self._dbA)
+        db.connectToDb(self._dbA)
+        db.createTable("t1", "(i int)")
+        db.execCommand0("LOAD DATA LOCAL INFILE '%s' INTO TABLE t1" % fN)
+        x =  db.execCommand1("SELECT COUNT(*) FROM t1")
+        assert(8 == db.execCommand1("SELECT COUNT(*) FROM t1"))
+        assert(3 == db.execCommand1("SELECT COUNT(*) FROM t1 WHERE i=4"))
+
+        # let's add some confusing data to the loaded file, it will get truncated
+        f = open(fN,'w')
+        f.write('11,12,13,14\n2')
+        f.close()
+        db.execCommand0("LOAD DATA LOCAL INFILE '%s' INTO TABLE t1" % fN)
+
+        db.dropDb(self._dbA)
+        db.disconnect()
+        os.remove(fN)
+
 ####################################################################################
 def main():
     logging.basicConfig(
