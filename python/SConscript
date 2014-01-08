@@ -1,0 +1,14 @@
+# -*- python -*-
+
+import os
+Import('env')
+
+distDir = "../dist/lsst/db"
+
+# touch init files
+env.Command("../dist/lsst/__init__.py",    None, [Touch("$TARGET")])
+env.Command("../dist/lsst/db/__init__.py", None, [Touch("$TARGET")])
+
+# include all .py files into the dist directory
+for f in env.Glob("lsst/db/*.py"):
+    env.Install(distDir, f)
