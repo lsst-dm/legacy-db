@@ -287,7 +287,7 @@ class Db:
             self.commit()
             self._closeConnection()
         except MySQLdb.Error, e:
-            msg = "Failed to disconnect %d: %s." % (e.args[0], e.args[1])
+            msg = "Failed to disconnect. Error was: %d: %s." % (e.args[0],e.args[1])
             self._logger.error(msg)
             raise DbException(DbException.ERR_SERVER_DISCONN, [msg])
         self._logger.debug("Connection to database server closed.")
@@ -320,7 +320,7 @@ class Db:
         """
         Check if there is connection to the server.
         """
-        return self._conn != None
+        return self._conn != None and self._conn.open
 
     def checkIsConnectedToDb(self, dbName):
         return (self.checkIsConnected() and
@@ -581,9 +581,6 @@ class Db:
         retrying.
         """
         self.connectToDbServer()
-        if self._conn is None:
-            raise DbException(DbException.ERR_INTERNAL, 
-                              ["self._conn is <None> in _execCommand"])
         cursor = self._conn.cursor()
         try:
             self._logger.debug("Executing '%s'." % command)

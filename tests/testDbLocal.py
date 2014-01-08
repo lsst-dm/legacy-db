@@ -329,14 +329,14 @@ class TestDbLocal(unittest.TestCase):
         """
         Testing recovery from lost connection.
         """
-        db = Db(self._user, self._pass, self._host, self._port, self._sock, maxRetryCount=3)
+        db = Db(self._user, self._pass, self._host, self._port, self._sock,
+                maxRetryCount=3)
+        db.connectToDbServer()
         db.createDb(self._dbA)
-        db.connectToDb(self._dbA)
-        db.createTable("t1", "(i int)")
-        raw_input("\nRun: 'sudo /etc/init.d/mysql stop', then press Enter to "
-                 "continue...\n")
-        db.createTable("t2", "(i int)")
+        db._conn.close() # <-- disrupt the connection
+        db.createDb(self._dbB)
         db.dropDb(self._dbA)
+        db.dropDb(self._dbB)
 
 ####################################################################################
 def main():
