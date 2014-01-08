@@ -38,6 +38,7 @@ import MySQLdb
 import os.path
 import StringIO
 import subprocess
+import warnings
 from datetime import datetime
 from time import sleep
 
@@ -64,6 +65,7 @@ class DbException(Exception):
     ERR_NOT_CONNECTED      = 1550
     ERR_TB_DOES_NOT_EXIST  = 1555
     ERR_TB_EXISTS          = 1560
+    WRN_SERVER_WARNING     = 1900
     ERR_INTERNAL           = 9999
 
     _errors = {
@@ -83,6 +85,7 @@ class DbException(Exception):
         ERR_NOT_CONNECTED: "Not connected to the database server.",
         ERR_TB_DOES_NOT_EXIST: ("Table does not exist."),
         ERR_TB_EXISTS: ("Table already exists."),
+        WRN_SERVER_WARNING: ("Warning."),
         ERR_INTERNAL: ("Internal error.")
     }
 
@@ -102,11 +105,17 @@ class DbException(Exception):
 
         @return string  Error message string, including all optional messages.
         """
-        msg = _errors.get(self._errNo,
+        msg = DbException._errors.get(self._errNo,
                           "Unrecognized database error: %d" % self._errNo)
         if self._extraMsgList is not None:
             for s in self._extraMsgList: msg += " (%s)" % s
         return msg
+
+    def errNo(self):
+        """
+        Return error number.
+        """
+        return self._errNo
 
 ####################################################################################
 class Db:
@@ -180,6 +189,9 @@ class Db:
         # MySQL connection-related error numbers. 
         # These are typically recoverable by reconnecting.
         self._mysqlConnErrors = [2002, 2006] 
+        # treat MySQL warnings as errors (catch them and throw DbException
+        # with a special error code)
+        warnings.filterwarnings('error', category=MySQLdb.Warning)
 
         if self._user is None:
             self._logger.error("Missing user credentials: user is None.")
@@ -245,6 +257,10 @@ class Db:
                 self._connectThroughPort()
             else:
                 self._handleConnectionFailure(e.args[0], e.args[1])
+        except MySQLdb.Warning as w:
+            self._logger.warning(
+                "Connection through socket produced warning: %s" % w)
+            raise DbException(DbException.WRN_SERVER_WARNING, [w])
 
     def _connectThroughPort(self):
         try:
@@ -268,6 +284,11 @@ class Db:
         except MySQLdb.Error as e:
             self._logger.info("connect through host:port failed")
             self._handleConnectionFailure(e.args[0], e.args[1])
+        except MySQLdb.Warning as w:
+            self._logger.warning(
+                "Connection through host:port produced warning: %s" % w)
+            raise DbException(DbException.WRN_SERVER_WARNING, [w])
+
         self._logger.debug("connected through '%s:%s'" % (self._host, self._port))
 
     def _handleConnectionFailure(self, e0, e1):
@@ -296,6 +317,10 @@ class Db:
             msg = "Failed to disconnect. Error was: %d: %s." % (e.args[0],e.args[1])
             self._logger.error(msg)
             raise DbException(DbException.ERR_SERVER_DISCONN, [msg])
+        except MySQLdb.Warning as w:
+            self._logger.warning("Disconnect produced warning: %s" % w)
+            raise DbException(DbException.WRN_SERVER_WARNING, [w])
+
         self._logger.debug("Connection to database server closed.")
         self._conn = None
         self._isConnectedToDb = False
@@ -318,6 +343,10 @@ class Db:
         except MySQLdb.Error, e:
             self._logger.error("Failed to select db '%s'." % dbName)
             raise DbException(DbException.ERR_CANT_CONNECT_TO_DB, [dbName])
+        except MySQLdb.Warning as w:
+            self._logger.warning("Select db '%s' produced warning: %s" % (dbName,w))
+            raise DbException(DbException.WRN_SERVER_WARNING, [w])
+
         self._isConnectedToDb = True
         self._defaultDbName = dbName
         self._logger.info("Connected to db '%s'." % self._defaultDbName)
@@ -599,9 +628,11 @@ class Db:
                     self.connectToDb(self.getDefaultDbName())
                 return self._execCommand(command, nRowsRet)
             else:
-                self._logger.error("Command failed. " + msg)
+                self._logger.error("Command '%s' failed: %s" % (command, msg))
                 raise DbException(DbException.ERR_SERVER_ERROR, [msg])
-
+        except MySQLdb.Warning as w:
+            self._logger.warning("Command '%s' produced warning: %s" % (command, w))
+            raise DbException(DbException.WRN_SERVER_WARNING, [w])
         if nRowsRet == 0:
             ret = ""
         elif nRowsRet == 1:

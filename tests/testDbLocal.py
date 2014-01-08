@@ -360,7 +360,11 @@ class TestDbLocal(unittest.TestCase):
         f = open(fN,'w')
         f.write('11,12,13,14\n2')
         f.close()
-        db.execCommand0("LOAD DATA LOCAL INFILE '%s' INTO TABLE t1" % fN)
+        try:
+            db.execCommand0("LOAD DATA LOCAL INFILE '%s' INTO TABLE t1" % fN)
+        except DbException as e:
+            print "Caught: #", e.errNo(), e
+            assert(e.errNo() == DbException.WRN_SERVER_WARNING)
 
         db.dropDb(self._dbA)
         db.disconnect()
