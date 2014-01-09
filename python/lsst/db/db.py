@@ -237,7 +237,7 @@ class Db:
         if self._optionFile:
             self._logger.info("using optionFile '%s'" % self._optionFile)
             args["read_default_file"] = self._optionFile
-       try:
+        try:
             self._conn = MySQLdb.connect(**args)
         except MySQLdb.Error as e:
             self._logger.info("connect through socket failed, error %d: %s." % \
@@ -340,18 +340,22 @@ class Db:
         """
         return self._conn != None and self._conn.open
 
-    def checkIsConnectedToDb(self, dbName):
-        return (self.checkIsConnected() and
-                self._isConnectedToDb and 
-                dbName == self.getDefaultDbName())
-
-    def getDefaultDbName(self):
+    def createDb(self, dbName):
         """
-        Get default database name.
+        Create database <dbName>.
 
-        @return string    The name of the default database.
+        @param dbName     Database name.
+
+        Create a new database <dbName>. Raise exception if the database already
+        exists. Connect to the server first if connection not open already. Note,
+        it will not connect to that database and it will not make it default.
         """
-        return self._defaultDbName
+        if dbName is None: 
+            raise DbException(DbException.INVALID_DB_NAME, "<None>")
+        self.connectToDbServer()
+        if self.checkDbExists(dbName):
+            raise DbException(DbException.DB_EXISTS, dbName)
+        self.execCommand0("CREATE DATABASE %s" % dbName)
 
     def checkDbExists(self, dbName=None):
         """
@@ -372,23 +376,6 @@ class Db:
         cmd += "WHERE schema_name = '%s'" % dbName
         return 1 == self.execCommand1(cmd)
 
-    def createDb(self, dbName):
-        """
-        Create database <dbName>.
-
-        @param dbName     Database name.
-
-        Create a new database <dbName>. Raise exception if the database already
-        exists. Connect to the server first if connection not open already. Note,
-        it will not connect to that database and it will not make it default.
-        """
-        if dbName is None: 
-            raise DbException(DbException.INVALID_DB_NAME, "<None>")
-        self.connectToDbServer()
-        if self.checkDbExists(dbName):
-            raise DbException(DbException.DB_EXISTS, dbName)
-        self.execCommand0("CREATE DATABASE %s" % dbName)
-
     def dropDb(self, dbName=None):
         """
         Drop database <dbName>.
@@ -407,6 +394,19 @@ class Db:
         self.execCommand0("DROP DATABASE %s" % dbName)
         if dbName == self.getDefaultDbName():
             self._resetDefaultDbName()
+
+    def checkIsConnectedToDb(self, dbName):
+        return (self.checkIsConnected() and
+                self._isConnectedToDb and 
+                dbName == self.getDefaultDbName())
+
+    def getDefaultDbName(self):
+        """
+        Get default database name.
+
+        @return string    The name of the default database.
+        """
+        return self._defaultDbName
 
     def checkTableExists(self, tableName, dbName=None):
         """
