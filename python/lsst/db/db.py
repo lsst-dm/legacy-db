@@ -376,18 +376,16 @@ class Db(object):
         cmd += "WHERE schema_name = '%s'" % dbName
         return 1 == self.execCommand1(cmd)
 
-    def dropDb(self, dbName=None):
+    def dropDb(self, dbName):
         """
         Drop database <dbName>.
 
         @param dbName     Database name.
 
-        Drop a database <dbName>. If <dbName> is None, the default database name
-        will be used. Raise exception if the database does not exists. Connect to
-        the server first if connection not open already. Disconnect from the
-        database if it is the default database.
+        Drop a database <dbName>. Raise exception if the database does not exists.
+        Connect to the server first if connection not open already. Disconnect from
+        the database if it is the default database.
         """
-        dbName = self._getDefaultDbNameIfNeeded(dbName)
         self.connectToDbServer()
         if not self.checkDbExists(dbName):
             raise DbException(DbException.DB_DOES_NOT_EXIST, dbName)
