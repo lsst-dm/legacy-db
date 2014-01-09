@@ -129,7 +129,7 @@ class Db:
     def __init__(self, user=None, passwd=None, host=None, port=None, socket=None,
                  dbName=None, optionFile=None, local_infile=0, maxRetryCount=12*60):
         """
-        Initialize the shared data. Raise exception if arguments are wrong.
+        Create a Db instance.
 
         @param user       User name.
         @param passwd     User's password.
@@ -155,7 +155,6 @@ class Db:
         self._isConnectedToDb = False
         self._maxRetryCount = maxRetryCount
         self._curRetryCount = 0
-        # MySQL defaults to socket if it sees "localhost". 127.0.0.1 will force TCP.
         self._socket = socket
         self._host = host
         self._port = port
@@ -166,18 +165,18 @@ class Db:
         self._local_infile = local_infile
 
         if self._optionFile is not None:
-            if optionFile.startswith('~'): 
-                self._optionFile = os.path.expanduser(optionFile)
+            self._optionFile = os.path.expanduser(optionFile)
             ret = self._parseOptionFile()
-            if ret["socket"  ] and socket is None: self._socket = ret["socket"]
-            if ret["host"    ] and host   is None: self._host   = ret["host"]
-            if ret["port"    ] and port   is None: self._port   = ret["port"]
-            if ret["user"    ] and user   is None: self._user   = ret["user"]
-            if ret["password"] and passwd is None: self._passwd = ret["password"]
-        if self._port:
+            if "socket"   in ret and socket is None: self._socket = ret["socket"]
+            if "host"     in ret and host   is None: self._host   = ret["host"]
+            if "port"     in ret and port   is None: self._port   = ret["port"]
+            if "user"     in ret and user   is None: self._user   = ret["user"]
+            if "password" in ret and passwd is None: self._passwd = ret["password"]
+        if self._port is not None:
             self._port = int(self._port)
         if self._passwd is None:
             self._passwd = ''
+        # MySQL defaults to socket if it sees "localhost". 127.0.0.1 will force TCP.
         if self._host == "localhost":
             self._host = "127.0.0.1"
             self._logger.warning('"localhost" specified, switching to 127.0.0.1')
@@ -191,15 +190,14 @@ class Db:
         if self._user is None:
             self._logger.error("Missing user credentials: user is None.")
             raise DbException(DbException.MISSING_CON_INFO, "invalid username")
-        if self._socket is None and \
-                (self._host is None or self._port<1 or self._port>65535):
+        if self._socket is None:
             if self._host is None:
-                self._logger.error("Missing connection info: " +
-                                   "socket=None, host=None")
+                self._logger.error("Missing connection info: socket=None, " +
+                                   "host=None")
                 raise DbException(DbException.MISSING_CON_INFO, 
                                   "invalid socket and host name")
-            else:
-                self._logger.error("Missing connection info, socket=None, " +
+            elif self._port<1 or self._port>65534:
+                self._logger.error("Missing connection info: socket=None, " +
                                    "port is invalid (must be within 1-65534), " +
                                    "got: %d" % self._port)
                 raise DbException(DbException.MISSING_CON_INFO, 
