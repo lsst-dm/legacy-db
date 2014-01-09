@@ -44,7 +44,7 @@ from time import sleep
 
 
 ####################################################################################
-class DbException(Exception):
+class DbException(Exception, object):
     """
     Database-specific exception class.
     """
@@ -210,7 +210,8 @@ class Db:
 
     def connectToDbServer(self):
         """
-        Connect to Database Server. Socket has higher priority than host/port.
+        Connect to Database Server. If dbName is provided. it connects to the
+        database. Socket has higher priority than host/port.
         """
         while self._curRetryCount <= self._maxRetryCount:
             if self.checkIsConnected():
@@ -224,24 +225,20 @@ class Db:
 
     def _connectThroughSocket(self):
         """
-        Connect through socket. On failure, try connecting through host/port.
+        Connect through socket. On failure, automatically try connecting through
+        host/port (if available).
         """
-        try:
-            self._logger.info("connecting as '%s' using socket '%s', %d of %d" % \
-                                  (self._user, self._socket, 
-                                   self._curRetryCount, self._maxRetryCount))
-            if self._optionFile:
-                self._logger.info("using optionFile '%s'" % self._optionFile)
-                self._conn = MySQLdb.connect(user=self._user,
-                                             passwd=self._passwd,
-                                             unix_socket=self._socket,
-                                             read_default_file=self._optionFile,
-                                             local_infile=self._local_infile)
-            else:
-                self._conn = MySQLdb.connect(user=self._user,
-                                             passwd=self._passwd,
-                                             unix_socket=self._socket,
-                                             local_infile=self._local_infile)
+        self._logger.info("connecting as '%s' using socket '%s', %d of %d" % \
+               (self._user, self._socket, self._curRetryCount, self._maxRetryCount))
+        args = { "user":         self._user,
+                 "passwd":       self._passwd,
+                 "unix_socket":  self._socket,
+                 "local_infile": self._local_infile }
+        if self._optionFile:
+            self._logger.info("using optionFile '%s'" % self._optionFile)
+            args["read_default_file"] = self._optionFile
+       try:
+            self._conn = MySQLdb.connect(**args)
         except MySQLdb.Error as e:
             self._logger.info("connect through socket failed, error %d: %s." % \
                                   (e.args[0], e.args[1]))
@@ -255,24 +252,19 @@ class Db:
             raise DbException(DbException.SERVER_WARNING, w.message)
 
     def _connectThroughPort(self):
+        self._logger.info("connecting as '%s' using '%s:%s', %d of %d" % \
+                              (self._user, self._host, self._port,
+                               self._curRetryCount, self._maxRetryCount))
+        args = { "user":         self._user,
+                 "passwd":       self._passwd,
+                 "host":         self._host,
+                 "port":         self._port,
+                 "local_infile": self._local_infile }
+        if self._optionFile:
+            self._logger.info("using optionFile '%s'" % self._optionFile)
+            args["read_default_file"] = self._optionFile
         try:
-            self._logger.info("connecting as '%s' using '%s:%s', %d of %d" % \
-                                  (self._user, self._host, self._port,
-                                   self._curRetryCount, self._maxRetryCount))
-            if self._optionFile:
-                self._logger.info("using optionFile '%s'" % self._optionFile)
-                self._conn = MySQLdb.connect(user=self._user,
-                                             passwd=self._passwd,
-                                             host=self._host,
-                                             port=self._port,
-                                             read_default_file=self._optionFile,
-                                             local_infile=self._local_infile)
-            else:
-                self._conn = MySQLdb.connect(user=self._user,
-                                             passwd=self._passwd,
-                                             host=self._host,
-                                             port=self._port,
-                                             local_infile=self._local_infile)
+            self._conn = MySQLdb.connect(**args)
         except MySQLdb.Error as e:
             self._logger.info("connect through host:port failed")
             self._handleConnectionFailure(e.args[0], e.args[1])
@@ -280,7 +272,6 @@ class Db:
             self._logger.warning(
                 "Connection through host:port produced warning: %s" % w.message)
             raise DbException(DbException.SERVER_WARNING, w.message)
-
         self._logger.debug("connected through '%s:%s'" % (self._host, self._port))
 
     def _handleConnectionFailure(self, e0, e1):
