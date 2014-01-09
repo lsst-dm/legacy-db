@@ -75,8 +75,7 @@ class DbException(Exception):
         INVALID_OPT_FILE: ("Can't open the option file."),
         MISSING_CON_INFO: ("Missing connection information."),
         SERVER_CONNECT: "Unable to connect to the database server.",
-        SERVER_DISCONN: ("Failed to commit transaction and "
-                         "disconnect from the database server."),
+        SERVER_DISCONN: ("Failed to disconnect from the database server."),
         SERVER_ERROR: ("Internal database server error."),
         NO_DB_SELECTED: ("No database selected."),
         NOT_CONNECTED: "Not connected to the database server.",
@@ -299,12 +298,11 @@ class Db:
 
     def disconnect(self):
         """
-        Commit transaction, and disconnect from the server.
+        Disconnect from the server.
         """
         if self._conn == None: return
         self._logger.info("disconnecting")
         try:
-            self.commit()
             self._closeConnection()
         except MySQLdb.Error, e:
             msg = "Failed to disconnect. Error was: %d: %s." % (e.args[0],e.args[1])
@@ -363,15 +361,6 @@ class Db:
         @return string    The name of the default database.
         """
         return self._defaultDbName
-
-    def commit(self):
-        """
-        Commit a transaction. Raise exception if not connected to the server.
-        """
-        if not self.checkIsConnected():
-            raise DbException(DbException.NOT_CONNECTED)
-        self._conn.commit()
-        self._logger.info("commit done")
 
     def checkDbExists(self, dbName=None):
         """
