@@ -46,47 +46,45 @@ from time import sleep
 ####################################################################################
 class DbException(Exception):
     """
-    Exception raised by Db class.
+    Database-specific exception class.
     """
 
-    # note: error numbered 1000 - 1200 are used by MySQL,
-    # see mysqld_ername.h in MySQL source code
-    ERR_CANT_CONNECT_TO_DB = 1500
-    ERR_CANT_EXEC_SCRIPT   = 1505
-    ERR_DB_EXISTS          = 1510
-    ERR_DB_DOES_NOT_EXIST  = 1515
-    ERR_INVALID_DB_NAME    = 1520
-    ERR_INVALID_OPT_FILE   = 1522
-    ERR_MISSING_CON_INFO   = 1525
-    ERR_SERVER_CONNECT     = 1530
-    ERR_SERVER_DISCONN     = 1535
-    ERR_SERVER_ERROR       = 1540
-    ERR_NO_DB_SELECTED     = 1545
-    ERR_NOT_CONNECTED      = 1550
-    ERR_TB_DOES_NOT_EXIST  = 1555
-    ERR_TB_EXISTS          = 1560
-    WRN_SERVER_WARNING     = 1900
-    ERR_INTERNAL           = 9999
+    CANT_CONNECT_TO_DB = 1500
+    CANT_EXEC_SCRIPT   = 1505
+    DB_EXISTS          = 1510
+    DB_DOES_NOT_EXIST  = 1515
+    INVALID_DB_NAME    = 1520
+    INVALID_OPT_FILE   = 1522
+    MISSING_CON_INFO   = 1525
+    SERVER_CONNECT     = 1530
+    SERVER_DISCONN     = 1535
+    SERVER_ERROR       = 1540
+    NO_DB_SELECTED     = 1545
+    NOT_CONNECTED      = 1550
+    TB_DOES_NOT_EXIST  = 1555
+    TB_EXISTS          = 1560
+    SERVER_WARNING     = 1900
+    INTERNAL           = 9999
 
     _errors = {
-        ERR_CANT_CONNECT_TO_DB: ("Can't connect to database."),
-        ERR_CANT_EXEC_SCRIPT: ("Can't execute script."),
-        ERR_DB_EXISTS: ("Database already exists."),
-        ERR_DB_DOES_NOT_EXIST: ("Database does not exist."),
-        ERR_INVALID_DB_NAME: ("Invalid database name."),
-        ERR_INVALID_OPT_FILE: ("Can't open the option file."),
-        ERR_MISSING_CON_INFO: ("Missing connection information -- "
-                               "must provide either host/port or socket."),
-        ERR_SERVER_CONNECT: "Unable to connect to the database server.",
-        ERR_SERVER_DISCONN: ("Failed to commit transaction and "
-                             "disconnect from the database server."),
-        ERR_SERVER_ERROR: ("Internal database server error."),
-        ERR_NO_DB_SELECTED: ("No database selected."),
-        ERR_NOT_CONNECTED: "Not connected to the database server.",
-        ERR_TB_DOES_NOT_EXIST: ("Table does not exist."),
-        ERR_TB_EXISTS: ("Table already exists."),
-        WRN_SERVER_WARNING: ("Warning."),
-        ERR_INTERNAL: ("Internal error.")
+        CANT_CONNECT_TO_DB: ("Can't connect to database."),
+        CANT_EXEC_SCRIPT: ("Can't execute script."),
+        DB_EXISTS: ("Database already exists."),
+        DB_DOES_NOT_EXIST: ("Database does not exist."),
+        INVALID_DB_NAME: ("Invalid database name."),
+        INVALID_OPT_FILE: ("Can't open the option file."),
+        MISSING_CON_INFO: ("Missing connection information -- "
+                           "must provide either host/port or socket."),
+        SERVER_CONNECT: "Unable to connect to the database server.",
+        SERVER_DISCONN: ("Failed to commit transaction and "
+                         "disconnect from the database server."),
+        SERVER_ERROR: ("Internal database server error."),
+        NO_DB_SELECTED: ("No database selected."),
+        NOT_CONNECTED: "Not connected to the database server.",
+        TB_DOES_NOT_EXIST: ("Table does not exist."),
+        TB_EXISTS: ("Table already exists."),
+        SERVER_WARNING: ("Warning."),
+        INTERNAL: ("Internal error.")
     }
 
     def __init__(self, errNo, extraMsgList=None):
@@ -195,19 +193,19 @@ class Db:
 
         if self._user is None:
             self._logger.error("Missing user credentials: user is None.")
-            raise DbException(DbException.ERR_MISSING_CON_INFO,["invalid username"])
+            raise DbException(DbException.MISSING_CON_INFO,["invalid username"])
         if self._socket is None and \
                 (self._host is None or self._port<1 or self._port>65535):
             if self._host is None:
                 self._logger.error("Missing connection info: " +
                                    "socket=None, host=None")
-                raise DbException(DbException.ERR_MISSING_CON_INFO, 
+                raise DbException(DbException.MISSING_CON_INFO, 
                                   ["invalid socket and host name"])
             else:
                 self._logger.error("Missing connection info, socket=None, " +
                                    "port is invalid (must be within 1-65534), " +
                                    "got: %d" % self._port)
-                raise DbException(DbException.ERR_MISSING_CON_INFO, 
+                raise DbException(DbException.MISSING_CON_INFO, 
                                   ["invalid port number, must be within 1-65534"])
 
     def __del__(self):
@@ -260,7 +258,7 @@ class Db:
         except MySQLdb.Warning as w:
             self._logger.warning(
                 "Connection through socket produced warning: %s" % w)
-            raise DbException(DbException.WRN_SERVER_WARNING, [w])
+            raise DbException(DbException.SERVER_WARNING, [w])
 
     def _connectThroughPort(self):
         try:
@@ -287,7 +285,7 @@ class Db:
         except MySQLdb.Warning as w:
             self._logger.warning(
                 "Connection through host:port produced warning: %s" % w)
-            raise DbException(DbException.WRN_SERVER_WARNING, [w])
+            raise DbException(DbException.SERVER_WARNING, [w])
 
         self._logger.debug("connected through '%s:%s'" % (self._host, self._port))
 
@@ -302,7 +300,7 @@ class Db:
             sleep(3)
         else:
             self._logger.error("Giving up on connecting")
-            raise DbException(DbException.ERR_SERVER_CONNECT, [msg])
+            raise DbException(DbException.SERVER_CONNECT, [msg])
 
     def disconnect(self):
         """
@@ -316,10 +314,10 @@ class Db:
         except MySQLdb.Error, e:
             msg = "Failed to disconnect. Error was: %d: %s." % (e.args[0],e.args[1])
             self._logger.error(msg)
-            raise DbException(DbException.ERR_SERVER_DISCONN, [msg])
+            raise DbException(DbException.SERVER_DISCONN, [msg])
         except MySQLdb.Warning as w:
             self._logger.warning("Disconnect produced warning: %s" % w)
-            raise DbException(DbException.WRN_SERVER_WARNING, [w])
+            raise DbException(DbException.SERVER_WARNING, [w])
 
         self._logger.debug("Connection to database server closed.")
         self._conn = None
@@ -342,10 +340,10 @@ class Db:
             self._conn.select_db(dbName)
         except MySQLdb.Error, e:
             self._logger.error("Failed to select db '%s'." % dbName)
-            raise DbException(DbException.ERR_CANT_CONNECT_TO_DB, [dbName])
+            raise DbException(DbException.CANT_CONNECT_TO_DB, [dbName])
         except MySQLdb.Warning as w:
             self._logger.warning("Select db '%s' produced warning: %s" % (dbName,w))
-            raise DbException(DbException.WRN_SERVER_WARNING, [w])
+            raise DbException(DbException.SERVER_WARNING, [w])
 
         self._isConnectedToDb = True
         self._defaultDbName = dbName
@@ -375,7 +373,7 @@ class Db:
         Commit a transaction. Raise exception if not connected to the server.
         """
         if not self.checkIsConnected():
-            raise DbException(DbException.ERR_NOT_CONNECTED)
+            raise DbException(DbException.NOT_CONNECTED)
         self._conn.commit()
         self._logger.info("commit done")
 
@@ -409,10 +407,10 @@ class Db:
         it will not connect to that database and it will not make it default.
         """
         if dbName is None: 
-            raise DbException(DbException.ERR_INVALID_DB_NAME, ["<None>"])
+            raise DbException(DbException.INVALID_DB_NAME, ["<None>"])
         self.connectToDbServer()
         if self.checkDbExists(dbName):
-            raise DbException(DbException.ERR_DB_EXISTS, [dbName])
+            raise DbException(DbException.DB_EXISTS, [dbName])
         self.execCommand0("CREATE DATABASE %s" % dbName)
 
     def dropDb(self, dbName=None):
@@ -429,7 +427,7 @@ class Db:
         dbName = self._getDefaultDbNameIfNeeded(dbName)
         self.connectToDbServer()
         if not self.checkDbExists(dbName):
-            raise DbException(DbException.ERR_DB_DOES_NOT_EXIST, [dbName])
+            raise DbException(DbException.DB_DOES_NOT_EXIST, [dbName])
         self.execCommand0("DROP DATABASE %s" % dbName)
         if dbName == self.getDefaultDbName():
             self._resetDefaultDbName()
@@ -470,7 +468,7 @@ class Db:
         dbName = self._getDefaultDbNameIfNeeded(dbName)
         self.connectToDbServer()
         if self.checkTableExists(tableName, dbName):
-            raise DbException(DbException.ERR_TB_EXISTS)
+            raise DbException(DbException.TB_EXISTS)
         self.execCommand0("CREATE TABLE %s.%s %s" % (dbName,tableName,tableSchema))
 
     def dropTable(self, tableName, dbName=None):
@@ -487,7 +485,7 @@ class Db:
         dbName = self._getDefaultDbNameIfNeeded(dbName)
         self.connectToDbServer()
         if not self.checkTableExists(tableName, dbName):
-            raise DbException(DbException.ERR_TB_DOES_NOT_EXIST)
+            raise DbException(DbException.TB_DOES_NOT_EXIST)
         self.execCommand0("DROP TABLE %s.%s %s" % (dbName, tableName, tableSchema))
 
     def isView(self, tableName, dbName=None):
@@ -506,7 +504,7 @@ class Db:
         dbName = self._getDefaultDbNameIfNeeded(dbName)
         self.connectToDbServer()
         if not self.checkTableExists(tableName, dbName):
-            raise DbException(DbException.ERR_TB_DOES_NOT_EXIST)
+            raise DbException(DbException.TB_DOES_NOT_EXIST)
         return self.execCommand1("SELECT COUNT(*) FROM information_schema.tables "
                                  "WHERE table_schema='%s' AND table_name='%s' AND "
                                  "table_type=\'VIEW\'" % (dbName, tableName))
@@ -567,7 +565,7 @@ class Db:
         with file(scriptPath) as scriptFile:
             if subprocess.call(cmd.split(), stdin=scriptFile) != 0:
                 msg = "Failed to execute %s < %s" % (cmd,scriptPath)
-                raise DbException(DbException.ERR_CANT_EXEC_SCRIPT, [msg])
+                raise DbException(DbException.CANT_EXEC_SCRIPT, [msg])
 
     def execCommand0(self, command):
         """
@@ -629,10 +627,10 @@ class Db:
                 return self._execCommand(command, nRowsRet)
             else:
                 self._logger.error("Command '%s' failed: %s" % (command, msg))
-                raise DbException(DbException.ERR_SERVER_ERROR, [msg])
+                raise DbException(DbException.SERVER_ERROR, [msg])
         except MySQLdb.Warning as w:
             self._logger.warning("Command '%s' produced warning: %s" % (command, w))
-            raise DbException(DbException.WRN_SERVER_WARNING, [w])
+            raise DbException(DbException.SERVER_WARNING, [w])
         if nRowsRet == 0:
             ret = ""
         elif nRowsRet == 1:
@@ -660,7 +658,7 @@ class Db:
             return dbName
         dbName = self.getDefaultDbName()
         if dbName is None:
-            raise DbException(DbException.ERR_INVALID_DB_NAME, ["<None>"])
+            raise DbException(DbException.INVALID_DB_NAME, ["<None>"])
         return dbName
 
     def _closeConnection(self):
@@ -695,7 +693,7 @@ class Db:
 
         if not os.path.isfile(self._optionFile):
             self._logger.error("Can't find '%s'." % self._optionFile)
-            raise DbException(DbException.ERR_INVALID_OPT_FILE, [self._optionFile])
+            raise DbException(DbException.INVALID_OPT_FILE, [self._optionFile])
 
         cnf = ConfigParser.ConfigParser()
         cnf.read(self._optionFile)
