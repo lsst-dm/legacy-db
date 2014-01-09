@@ -112,7 +112,7 @@ class DbException(Exception, object):
     	return self._messages
 
 ####################################################################################
-class Db:
+class Db(object):
     """
     @brief Wrapper around MySQLdb. 
 
@@ -163,21 +163,21 @@ class Db:
         self._defaultDbName = dbName
         self._local_infile = local_infile
 
-        if self._optionFile is not None:
-            self._optionFile = os.path.expanduser(optionFile)
+        if self.optionFile is not None:
+            self.optionFile = os.path.expanduser(optionFile)
             ret = self._parseOptionFile()
-            if "socket"   in ret and socket is None: self._socket = ret["socket"]
-            if "host"     in ret and host   is None: self._host   = ret["host"]
-            if "port"     in ret and port   is None: self._port   = ret["port"]
-            if "user"     in ret and user   is None: self._user   = ret["user"]
-            if "password" in ret and passwd is None: self._passwd = ret["password"]
-        if self._port is not None:
-            self._port = int(self._port)
-        if self._passwd is None:
-            self._passwd = ''
+            if "socket"   in ret and socket is None: self.socket = ret["socket"]
+            if "host"     in ret and host   is None: self.host   = ret["host"]
+            if "port"     in ret and port   is None: self.port   = ret["port"]
+            if "user"     in ret and user   is None: self.user   = ret["user"]
+            if "password" in ret and passwd is None: self.passwd = ret["password"]
+        if self.port is not None:
+            self.port = int(self.port)
+        if self.passwd is None:
+            self.passwd = ''
         # MySQL defaults to socket if it sees "localhost". 127.0.0.1 will force TCP.
-        if self._host == "localhost":
-            self._host = "127.0.0.1"
+        if self.host == "localhost":
+            self.host = "127.0.0.1"
             self._logger.warning('"localhost" specified, switching to 127.0.0.1')
         # MySQL connection-related error numbers. 
         # These are typically recoverable by reconnecting.
@@ -186,19 +186,19 @@ class Db:
         # with a special error code)
         warnings.filterwarnings('error', category=MySQLdb.Warning)
 
-        if self._user is None:
+        if self.user is None:
             self._logger.error("Missing user credentials: user is None.")
             raise DbException(DbException.MISSING_CON_INFO, "invalid username")
-        if self._socket is None:
-            if self._host is None:
+        if self.socket is None:
+            if self.host is None:
                 self._logger.error("Missing connection info: socket=None, " +
                                    "host=None")
                 raise DbException(DbException.MISSING_CON_INFO, 
                                   "invalid socket and host name")
-            elif self._port<1 or self._port>65534:
+            elif self.port<1 or self.port>65534:
                 self._logger.error("Missing connection info: socket=None, " +
                                    "port is invalid (must be within 1-65534), " +
-                                   "got: %d" % self._port)
+                                   "got: %d" % self.port)
                 raise DbException(DbException.MISSING_CON_INFO, 
                                   "invalid port number, must be within 1-65534")
 
@@ -216,7 +216,7 @@ class Db:
         while self._curRetryCount <= self._maxRetryCount:
             if self.checkIsConnected():
                 return
-            if self._socket is not None:
+            if self.socket is not None:
                 self._connectThroughSocket()
             else:
                 self._connectThroughPort()
@@ -229,20 +229,20 @@ class Db:
         host/port (if available).
         """
         self._logger.info("connecting as '%s' using socket '%s', %d of %d" % \
-               (self._user, self._socket, self._curRetryCount, self._maxRetryCount))
-        args = { "user":         self._user,
-                 "passwd":       self._passwd,
-                 "unix_socket":  self._socket,
-                 "local_infile": self._local_infile }
-        if self._optionFile:
-            self._logger.info("using optionFile '%s'" % self._optionFile)
-            args["read_default_file"] = self._optionFile
+               (self.user, self.socket, self._curRetryCount, self._maxRetryCount))
+        args = { "user":         self.user,
+                 "passwd":       self.passwd,
+                 "unix_socket":  self.socket,
+                 "local_infile": self.local_infile }
+        if self.optionFile:
+            self._logger.info("using optionFile '%s'" % self.optionFile)
+            args["read_default_file"] = self.optionFile
         try:
             self._conn = MySQLdb.connect(**args)
         except MySQLdb.Error as e:
             self._logger.info("connect through socket failed, error %d: %s." % \
                                   (e.args[0], e.args[1]))
-            if self._host is not None and self._port is not None:
+            if self.host is not None and self.port is not None:
                 self._connectThroughPort()
             else:
                 self._handleConnectionFailure(e.args[0], e.args[1])
@@ -253,16 +253,16 @@ class Db:
 
     def _connectThroughPort(self):
         self._logger.info("connecting as '%s' using '%s:%s', %d of %d" % \
-                              (self._user, self._host, self._port,
+                              (self.user, self.host, self.port,
                                self._curRetryCount, self._maxRetryCount))
-        args = { "user":         self._user,
-                 "passwd":       self._passwd,
-                 "host":         self._host,
-                 "port":         self._port,
-                 "local_infile": self._local_infile }
-        if self._optionFile:
-            self._logger.info("using optionFile '%s'" % self._optionFile)
-            args["read_default_file"] = self._optionFile
+        args = { "user":         self.user,
+                 "passwd":       self.passwd,
+                 "host":         self.host,
+                 "port":         self.port,
+                 "local_infile": self.local_infile }
+        if self.optionFile:
+            self._logger.info("using optionFile '%s'" % self.optionFile)
+            args["read_default_file"] = self.optionFile
         try:
             self._conn = MySQLdb.connect(**args)
         except MySQLdb.Error as e:
@@ -272,13 +272,13 @@ class Db:
             self._logger.warning(
                 "Connection through host:port produced warning: %s" % w.message)
             raise DbException(DbException.SERVER_WARNING, w.message)
-        self._logger.debug("connected through '%s:%s'" % (self._host, self._port))
+        self._logger.debug("connected through '%s:%s'" % (self.host, self.port))
 
     def _handleConnectionFailure(self, e0, e1):
         self._closeConnection()
         msg = "Couldn't connect to database server using socket "
         msg += "'%s' or host:port: '%s:%s'. Error: %d: %s." % \
-            (self._socket, self._host, self._port, e0, e1)
+            (self.socket, self.host, self.port, e0, e1)
         self._curRetryCount += 1
         if e0 in self._mysqlConnErrors and self._curRetryCount<=self._maxRetryCount:
             self._logger.info("Waiting for database server to come back...")
@@ -332,7 +332,7 @@ class Db:
 
         self._isConnectedToDb = True
         self._defaultDbName = dbName
-        self._logger.info("Connected to db '%s'." % self._defaultDbName)
+        self._logger.info("Connected to db '%s'." % self.defaultDbName)
 
     def checkIsConnected(self):
         """
@@ -369,7 +369,7 @@ class Db:
         name will be used. Connect to the server first if connection not open
         already.
         """
-        if dbName is None and self.getDefaultDbName() is None: return False
+        if dbName is None and self.defaultDbName is None: return False
         dbName = self._getDefaultDbNameIfNeeded(dbName)
         self.connectToDbServer()
         cmd = "SELECT COUNT(*) FROM information_schema.schemata "
@@ -392,21 +392,13 @@ class Db:
         if not self.checkDbExists(dbName):
             raise DbException(DbException.DB_DOES_NOT_EXIST, dbName)
         self.execCommand0("DROP DATABASE %s" % dbName)
-        if dbName == self.getDefaultDbName():
+        if dbName == self.defaultDbName:
             self._resetDefaultDbName()
 
     def checkIsConnectedToDb(self, dbName):
         return (self.checkIsConnected() and
                 self._isConnectedToDb and 
-                dbName == self.getDefaultDbName())
-
-    def getDefaultDbName(self):
-        """
-        Get default database name.
-
-        @return string    The name of the default database.
-        """
-        return self._defaultDbName
+                dbName == self.defaultDbName)
 
     def checkTableExists(self, tableName, dbName=None):
         """
@@ -421,7 +413,7 @@ class Db:
         set, the default database name will be used. Connect to the server first if
         connection not open already.
         """
-        if dbName is None and self.getDefaultDbName() is None: return False
+        if dbName is None and self.defaultDbName is None: return False
         dbName = self._getDefaultDbNameIfNeeded(dbName)
         self.connectToDbServer()
         cmd = "SELECT COUNT(*) FROM information_schema.tables "
@@ -523,20 +515,20 @@ class Db:
         @param dbName     Database name.
         """
         self._logger.info("loading script %s into db %s" %(scriptPath,dbName))
-        if self._passwd:
-            if self._socket is None:
+        if self.passwd:
+            if self.socket is None:
                 cmd = 'mysql -h%s -P%s -u%s -p%s %s' % \
-                (self._host, self._port, self._user, self._passwd, dbName)
+                (self.host, self.port, self.user, self.passwd, dbName)
             else:
                 cmd = 'mysql -S%s -u%s -p%s %s' % \
-                (self._socket, self._user,self._passwd, dbName)
+                (self.socket, self.user,self.passwd, dbName)
         else:
-            if self._socket is None:
+            if self.socket is None:
                 cmd = 'mysql -h%s -P%s -u%s %s' % \
-                (self._host, self._port, self._user, dbName)
+                (self.host, self.port, self.user, dbName)
             else:
                 cmd = 'mysql -S%s -u%s %s' % \
-                (self._socket, self._user, dbName)
+                (self.socket, self.user, dbName)
         self._logger.debug("cmd is %s" % cmd)
         with file(scriptPath) as scriptFile:
             if subprocess.call(cmd.split(), stdin=scriptFile) != 0:
@@ -598,8 +590,8 @@ class Db:
                 self._closeConnection()
                 self._isConnectedToDb = False
                 cursor = None
-                if self.getDefaultDbName() is not None:
-                    self.connectToDb(self.getDefaultDbName())
+                if self.defaultDbName is not None:
+                    self.connectToDb(self.defaultDbName)
                 return self._execCommand(command, nRowsRet)
             else:
                 self._logger.error("Command '%s' failed: %s" % (command, msg))
@@ -633,7 +625,7 @@ class Db:
         """
         if dbName is not None: 
             return dbName
-        dbName = self.getDefaultDbName()
+        dbName = self.defaultDbName
         if dbName is None:
             raise DbException(DbException.INVALID_DB_NAME, "<None>")
         return dbName
@@ -668,15 +660,71 @@ class Db:
         options = ("socket", "host", "port", "user", "password")
         for o in options: ret[o] = None
 
-        if not os.path.isfile(self._optionFile):
-            self._logger.error("Can't find '%s'." % self._optionFile)
-            raise DbException(DbException.INVALID_OPT_FILE, self._optionFile)
+        if not os.path.isfile(self.optionFile):
+            self._logger.error("Can't find '%s'." % self.optionFile)
+            raise DbException(DbException.INVALID_OPT_FILE, self.optionFile)
 
         cnf = ConfigParser.ConfigParser()
-        cnf.read(self._optionFile)
+        cnf.read(self.optionFile)
         if cnf.has_section("client"):
             for o in options:
                 if cnf.has_option("client", o): ret[o] = cnf.get("client", o)
         self._logger.info("connection info from option file '%s': %s" % \
-                              (self._optionFile, str(ret)))
+                              (self.optionFile, str(ret)))
         return ret
+
+    @property
+    def socket(self):
+        return self._socket
+
+    @property
+    def host(self):
+        return self._host
+
+    @property
+    def port(self):
+        return self._port
+
+    @property
+    def user(self):
+        return self._user
+
+    @property
+    def passwd(self):
+        return self._passwd
+
+    @property
+    def optionFile(self):
+        return self._optionFile
+
+    @property
+    def defaultDbName(self):
+        return self._defaultDbName
+
+    @property
+    def local_infile(self):
+        return self._local_infile
+
+    @socket.setter
+    def socket(self, v):
+        self._socket = v
+
+    @host.setter
+    def host(self, v):
+        self._host = v
+
+    @port.setter
+    def port(self, v):
+        self._port = v
+
+    @user.setter
+    def user(self, v):
+        self._user = v
+
+    @passwd.setter
+    def passwd(self, v):
+        self._passwd = v
+
+    @optionFile.setter
+    def optionFile(self, f):
+        self._optionFile = f
