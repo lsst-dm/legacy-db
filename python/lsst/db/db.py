@@ -124,7 +124,7 @@ class Db(object):
     """
 
     def __init__(self, user=None, passwd=None, host=None, port=None, socket=None,
-                 optionFile=None, local_infile=0, sleepLen=3, maxRetryCount=1200):
+                 optionFile=None, local_infile=0, sleepLen=3, maxRetryCount=0):
         """
         Create a Db instance.
 
@@ -244,6 +244,8 @@ class Db(object):
         if ret:
             self._attemptNo = 1
         else:
+            if self._attemptMaxNo == 1:
+                raise DbException(DbException.SERVER_CONNECT)
             self._attemptNo += 1
             self._logger.debug("sleeping %s sec" % self.sleepLen)
             sleep(self.sleepLen)
@@ -277,7 +279,7 @@ class Db(object):
             self._logger.info("Failed to establish MySQL connection " +
                    "using %s. [%d: %s]" % (connProtocol, e.args[0], e.args[1]))
             if e[0] in self._mysqlConnErrors and \
-                    self._attemptNo < self._attemptMaxNo:
+                 (self._attemptNo < self._attemptMaxNo or self._attemptMaxNo == 1):
                 return False
             self._logger.error("Can't recover, sorry")
             raise DbException(DbException.SERVER_CONNECT, "%d: %s" % e.args[:2])
