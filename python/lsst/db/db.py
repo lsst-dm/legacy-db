@@ -28,7 +28,8 @@ handles database errors.
 @author  Jacek Becla, SLAC
 
 Known issues:
- * none.
+ * pinging server right before every command. That seems heavy. Need to think about
+   more lightweight approach.
 """
 
 import ConfigParser
@@ -177,7 +178,7 @@ class Db(object):
             self._logger.warning('"localhost" specified, switching to 127.0.0.1')
         # MySQL connection-related error numbers. 
         # These are typically recoverable by reconnecting.
-        self._mysqlConnErrors = [2002, 2003, 2006] 
+        self._mysqlConnErrors = [2002, 2003, 2006, 2013] 
         # treat MySQL warnings as errors (catch them and throw DbException
         # with a special error code)
         warnings.filterwarnings('error', category=MySQLdb.Warning)
@@ -579,6 +580,16 @@ class Db(object):
         retrying.
         """
         self.connectToDbServer()
+        try:
+            self._logger.info("pinging server")
+            self._conn.ping()
+        except MySQLdb.OperationalError as e:
+            if e.args[0] in self._mysqlConnErrors:
+                self._logger.info(
+                    "reconnecting because of [%d: %s]" % (e.args[0], e.args[1]))
+                self.disconnect()
+                self.connectToDbServer()
+
         cursor = self._conn.cursor()
         try:
             self._logger.debug("Executing '%s'." % command)

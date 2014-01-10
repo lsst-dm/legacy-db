@@ -35,7 +35,8 @@ socket   = <socket>
 @author  Jacek Becla, SLAC
 
 Known issues and todos:
- * it blocks on user input.
+ * restarting server test - it'd be best to restart it for real (without blocking
+   on user input.
 """
 
 import ConfigParser
@@ -325,7 +326,7 @@ class TestDbLocal(unittest.TestCase):
                 sleepLen=5, maxRetryCount=10)
         db.connectToDbServer()
         db.createDb(self._dbA)
-        db._conn.close() # <-- disrupt the connection
+        #time.sleep(10)
         db.createDb(self._dbB)
         db.dropDb(self._dbA)
         db.dropDb(self._dbB)
