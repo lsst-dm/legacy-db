@@ -54,9 +54,9 @@ class TestDbRemote(unittest.TestCase):
         self._dbC = "%s_dbWrapperTestDb_C" % self._user
 
         db = Db(self._user, self._pass, self._host, self._port)
-        if db.checkDbExists(self._dbA): self._db.dropDb(self._dbA)
-        if db.checkDbExists(self._dbB): self._db.dropDb(self._dbB)
-        if db.checkDbExists(self._dbC): self._db.dropDb(self._dbC)
+        if db.checkDbExists(self._dbA): db.dropDb(self._dbA)
+        if db.checkDbExists(self._dbB): db.dropDb(self._dbB)
+        if db.checkDbExists(self._dbC): db.dropDb(self._dbC)
         db.disconnect()
 
     def _initCredentials(self):
@@ -86,7 +86,7 @@ class TestDbRemote(unittest.TestCase):
         """
         db = Db(self._user, self._pass, self._host, self._port)
         db.createDb(self._dbA)
-        db.connectToDb(self._dbA)
+        db.useDb(self._dbA)
         db.createTable("t1", "(i int)")
         db.dropDb(self._dbA)
         db.disconnect()
@@ -109,7 +109,8 @@ class TestDbRemote(unittest.TestCase):
         self.assertRaises(DbException, Db, self._user, self._pass,self._host,987654)
 
     def testConn_wrongPortNo(self):
-        db = Db(self._user, self._pass, self._host, 1579)
+        db = Db(self._user, self._pass, self._host, 1579,
+                sleepLen=0, maxRetryCount=10)
         self.assertRaises(DbException, db.connectToDbServer)
 
     def testConn_invalidUserName(self):
@@ -128,33 +129,25 @@ class TestDbRemote(unittest.TestCase):
         db.disconnect()
         # not connected at all
         self.assertFalse(db.checkIsConnected())
-        self.assertFalse(db.checkIsConnectedToDb(self._dbA))
-        self.assertFalse(db.checkIsConnectedToDb(self._dbB))
         # just initialize state, still not connected at all
         db = Db(self._user, self._pass, self._host, self._port)
         self.assertFalse(db.checkIsConnected())
-        self.assertFalse(db.checkIsConnectedToDb(self._dbA))
-        self.assertFalse(db.checkIsConnectedToDb(self._dbB))
         # connect to server, not to db
         db.connectToDbServer()
         self.assertTrue(db.checkIsConnected())
-        self.assertFalse(db.checkIsConnectedToDb(self._dbA))
-        self.assertFalse(db.checkIsConnectedToDb(self._dbB))
         # create db, still don't connect to it
         db.createDb(self._dbA)
         self.assertTrue(db.checkIsConnected())
-        self.assertFalse(db.checkIsConnectedToDb(self._dbA))
-        self.assertFalse(db.checkIsConnectedToDb(self._dbB))
+        self.assertNotEqual(db.getCurrentDbName(), self._dbA)
+        self.assertNotEqual(db.getCurrentDbName(), self._dbB)
         # finally connect to it
-        db.connectToDb(self._dbA)
+        db.useDb(self._dbA)
         self.assertTrue(db.checkIsConnected())
-        self.assertTrue(db.checkIsConnectedToDb(self._dbA))
-        self.assertFalse(db.checkIsConnectedToDb(self._dbB))
+        self.assertEqual(db.getCurrentDbName(), self._dbA)
+        self.assertNotEqual(db.getCurrentDbName(), self._dbB)
         # delete that database
         db.dropDb(self._dbA)
         self.assertFalse(db.checkIsConnected())
-        self.assertFalse(db.checkIsConnectedToDb(self._dbA))
-        self.assertFalse(db.checkIsConnectedToDb(self._dbB))
 
     def testCheckExists(self):
         """
@@ -175,7 +168,7 @@ class TestDbRemote(unittest.TestCase):
         self.assertTrue(db.checkDbExists(self._dbA))
         self.assertFalse(db.checkDbExists("bla"))
         self.assertTrue(db.checkTableExists("t1", self._dbA))
-        db.connectToDb(self._dbA)
+        db.useDb(self._dbA)
         self.assertTrue(db.checkTableExists("t1"))
         self.assertFalse(db.checkTableExists("bla"))
         self.assertFalse(db.checkTableExists("bla", "blaBla"))

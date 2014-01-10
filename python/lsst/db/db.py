@@ -114,19 +114,17 @@ class DbException(Exception, object):
 ####################################################################################
 class Db(object):
     """
-    @brief Wrapper around MySQLdb. 
+    @brief Wrapper around MySQLdb.
 
     This class wraps MySQLdb. It adds extra functionality, like recovering from
     lost connection, It also implements some useful functions, like creating
     databases/tables. Connection is done either through host/port or socket (at
-    least one of these must be provided). DbName is optional. Password can be empty.
-    If it can't connect, it will retry (and sleep). Known feature: it has no way
-    of knowing if specified socket is invalid or server is down, so if bad socket
-    is specified, it will still try to retry using that socket.
+    least one of these must be provided). Password can be empty. If it can't
+    connect, it will retry (and sleep).
     """
 
     def __init__(self, user=None, passwd=None, host=None, port=None, socket=None,
-                 dbName=None, optionFile=None, local_infile=0, maxRetryCount=12*60):
+                 optionFile=None, local_infile=0, sleepLen=3, maxRetryCount=1200):
         """
         Create a Db instance.
 
@@ -135,32 +133,30 @@ class Db(object):
         @param host       Host name.
         @param port       Port number.
         @param socket     Socket.
-        @param dbName     Database name.
         @param optionFile Option file. Note that it can also contain parameters
                           like host/port/user/password.
         @param local_infile local_infile flag. Allowed values: 0, 1
+        @param sleepLen   Length of sleep time in betwen retries, in seconds.
+                          Default is 3
         @param maxRetryCount Number of retries in case there is connection
-                          failure. There is a 5 sec sleep between each retry.
-                          Default is one hour: 12*60 * 5 sec sleep
+                          failure. There is a 3 sec sleep between each retry.
+                          Default is 1200 (which translates to one hour).
 
-        Initialize shared state. If multiple ways of connecting are specified,
-        the order is: socket passed through parameter is tried first, socket 
-        passed through optionFile second, host/port passed through parameter third,
-        and host/port through optionFile last.
         Raise exception if both host/port AND socket are invalid.
         """
         self._conn = None
         self._logger = logging.getLogger("DBWRAP")
+        self._logger.debug("db __init__")
         self._isConnectedToDb = False
+        self._sleepLen = sleepLen
         self._maxRetryCount = maxRetryCount
-        self._curRetryCount = 0
+        self._curRetryCount = 1
         self._socket = socket
         self._host = host
         self._port = port
         self._user = user
         self._passwd = passwd
         self._optionFile = optionFile
-        self._defaultDbName = dbName
         self._local_infile = local_infile
 
         if self.optionFile is not None:
@@ -181,7 +177,7 @@ class Db(object):
             self._logger.warning('"localhost" specified, switching to 127.0.0.1')
         # MySQL connection-related error numbers. 
         # These are typically recoverable by reconnecting.
-        self._mysqlConnErrors = [2002, 2006] 
+        self._mysqlConnErrors = [2002, 2003, 2006] 
         # treat MySQL warnings as errors (catch them and throw DbException
         # with a special error code)
         warnings.filterwarnings('error', category=MySQLdb.Warning)
@@ -206,92 +202,104 @@ class Db(object):
         """
         Disconnect from the server.
         """
+        self._logger.debug("db __del__")
         self.disconnect()
 
-    def connectToDbServer(self):
+    def connectToDbServer(self, dbName=None, preferTcp=False):
         """
         Connect to Database Server. If dbName is provided. it connects to the
-        database. Socket has higher priority than host/port.
+        database. Priority of socket vs host/port is given through preferTcp flag.
         """
-        while self._curRetryCount <= self._maxRetryCount:
-            if self.checkIsConnected():
-                return
-            if self.socket is not None:
-                self._connectThroughSocket()
-            else:
-                self._connectThroughPort()
-            if self.checkIsConnected(): 
-                self._curRetryCount = 0
-
-    def _connectThroughSocket(self):
-        """
-        Connect through socket. On failure, automatically try connecting through
-        host/port (if available).
-        """
-        self._logger.info("connecting as '%s' using socket '%s', %d of %d" % \
-               (self.user, self.socket, self._curRetryCount, self._maxRetryCount))
-        args = { "user":         self.user,
-                 "passwd":       self.passwd,
-                 "unix_socket":  self.socket,
-                 "local_infile": self.local_infile }
+        if self.checkIsConnected():
+            return
+        kwargs = { 
+            "user":         self.user,
+            "passwd":       self.passwd,
+            "local_infile": self.local_infile,
+        }
         if self.optionFile:
-            self._logger.info("using optionFile '%s'" % self.optionFile)
-            args["read_default_file"] = self.optionFile
-        try:
-            self._conn = MySQLdb.connect(**args)
-        except MySQLdb.Error as e:
-            self._logger.info("connect through socket failed, error %d: %s." % \
-                                  (e.args[0], e.args[1]))
-            if self.host is not None and self.port is not None:
-                self._connectThroughPort()
-            else:
-                self._handleConnectionFailure(e.args[0], e.args[1])
-        except MySQLdb.Warning as w:
-            self._logger.warning(
-                "Connection through socket produced warning: %s" % w.message)
-            raise DbException(DbException.SERVER_WARNING, w.message)
-
-    def _connectThroughPort(self):
-        self._logger.info("connecting as '%s' using '%s:%s', %d of %d" % \
-                              (self.user, self.host, self.port,
-                               self._curRetryCount, self._maxRetryCount))
-        args = { "user":         self.user,
-                 "passwd":       self.passwd,
-                 "host":         self.host,
-                 "port":         self.port,
-                 "local_infile": self.local_infile }
-        if self.optionFile:
-            self._logger.info("using optionFile '%s'" % self.optionFile)
-            args["read_default_file"] = self.optionFile
-        try:
-            self._conn = MySQLdb.connect(**args)
-        except MySQLdb.Error as e:
-            self._logger.info("connect through host:port failed")
-            self._handleConnectionFailure(e.args[0], e.args[1])
-        except MySQLdb.Warning as w:
-            self._logger.warning(
-                "Connection through host:port produced warning: %s" % w.message)
-            raise DbException(DbException.SERVER_WARNING, w.message)
-        self._logger.debug("connected through '%s:%s'" % (self.host, self.port))
-
-    def _handleConnectionFailure(self, e0, e1):
-        self._closeConnection()
-        msg = "Couldn't connect to database server using socket "
-        msg += "'%s' or host:port: '%s:%s'. Error: %d: %s." % \
-            (self.socket, self.host, self.port, e0, e1)
-        self._curRetryCount += 1
-        if e0 in self._mysqlConnErrors and self._curRetryCount<=self._maxRetryCount:
-            self._logger.info("Waiting for database server to come back...")
-            sleep(3)
+            kwargs["read_default_file"] = self.optionFile
+        if dbName is not None:
+            kwargs["dbName"] = dbName
+        self._logger.info("Connecting as '%s', attempt %d of %d" % \
+                              (self.user, self._curRetryCount, self._maxRetryCount))
+        if (self._host is not None and self._port is not None and
+            (self.socket is None or preferTcp)):
+            cProt = "tcp"
+        elif self.socket is not None:
+            cProt = "socket"
         else:
-            self._logger.error("Giving up on connecting")
-            raise DbException(DbException.SERVER_CONNECT, msg)
+            raise DbException(DbException.MISSING_CON_INFO, "either a socket "
+                              "file or a host name and port must be specified")
+        # try connecting using preferred method
+        if self._tryConnect(kwargs, cProt):
+            self._curRetryCount = 1
+            return
+        self._logger.debug("Connecting via '%s' failed, trying alternative" % cProt)
+        ret = None
+        if cProt == "tcp" and self.socket is not None:
+            ret = self._tryConnect(kwargs, "socket")
+        elif cProt == "socket" and self.host is not None and self.port is not None:
+            ret = self._tryConnect(kwargs, "tcp")
+        if ret:
+            self._curRetryCount = 1
+        else:
+            self._curRetryCount += 1
+            self._logger.debug("sleeping %s sec" % self.sleepLen)
+            sleep(self.sleepLen)
+            self.connectToDbServer(dbName, preferTcp)
+
+    def _tryConnect(self, kwargs, connProtocol):
+        """
+        Try to connect using kwargs arguments, use method is instructed by
+        connectProtocol. Return True on success, False on recoverable error, and
+        raise exception on non-recoverable error.
+        """
+        self._logger.debug("tryConnect, %s, %s" % (connProtocol, str(kwargs)))
+        if connProtocol == "tcp":
+            kwargs["host"] = self.host
+            kwargs["port"] = self.port
+            if "unix_socket" in kwargs: del kwargs["unix_socket"]
+            self._logger.info("Using %s:%s'" % (self.host, self.port))
+        elif connProtocol == "socket":
+            kwargs["unix_socket"] = self.socket
+            if "host" in kwargs: del kwargs["host"]
+            if "port" in kwargs: del kwargs["port"]
+            self._logger.info("Using socket '%s'" % self.socket)
+        else:
+            self._logger.debug("No valid protocol in _tryConnect")
+            return False
+        conn = None
+        try:
+            self._logger.debug("mysql.connect. " + str(kwargs))
+            conn = MySQLdb.connect(**kwargs)
+        except MySQLdb.Error as e:
+            self._logger.info("Failed to establish MySQL connection " +
+                   "using %s. [%d: %s]" % (connProtocol, e.args[0], e.args[1]))
+            if e[0] in self._mysqlConnErrors and \
+                    self._curRetryCount < self._maxRetryCount:
+                return False
+            self._logger.error("Can't recover, sorry")
+            raise DbException(DbException.SERVER_CONNECT, "%d: %s" % e.args[:2])
+        except MySQLdb.Warning as w:
+            self._logger.info("MySQL connection warning: %s" % w.message)
+            raise DbException(DbException.SERVER_WARNING, w.message)
+        else:
+            self._conn = conn
+            conn = None
+        finally:
+            if conn is not None:
+                try:
+                    conn.close()
+                except:
+                    pass
+        return True
 
     def disconnect(self):
         """
         Disconnect from the server.
         """
-        if self._conn == None: return
+        if not self.checkIsConnected(): return
         self._logger.info("disconnecting")
         try:
             self._closeConnection()
@@ -307,32 +315,32 @@ class Db(object):
         self._conn = None
         self._isConnectedToDb = False
 
-    def connectToDb(self, dbName=None):
+    def useDb(self, dbName):
         """
-        Connect to database <dbName>, or if <dbName>, to the default database.
+        Connect to database <dbName>.
 
         @param dbName     Database name.
-
-        Connect to database <dbName>. If <dbName> is None, the default database
-        name will be used. Connect to the server first if connection not open
-        already.
         """
-        dbName = self._getDefaultDbNameIfNeeded(dbName)
-        if self.checkIsConnectedToDb(dbName): return
+        cDb = self.getCurrentDbName()
+        if cDb is not None and cDb == dbName:
+            return
         try:
-            self.connectToDbServer()
-            self._conn.select_db(dbName)
+            if not self.checkIsConnected():
+                self._logger.info("in useDb, connecting to server")
+                self.connectToDbServer(dbName)
+            else:
+                self._logger.info("in useDb, connecting to db")
+                self._conn.select_db(dbName)
         except MySQLdb.Error, e:
-            self._logger.error("Failed to select db '%s'." % dbName)
+            self._logger.error("Failed to use db '%s'." % dbName)
             raise DbException(DbException.CANT_CONNECT_TO_DB, dbName)
         except MySQLdb.Warning as w:
             self._logger.warning("Select db '%s' produced warning: %s" % \
-                                     (dbName,w.message))
+                                     (dbName, w.message))
             raise DbException(DbException.SERVER_WARNING, w.message)
 
         self._isConnectedToDb = True
-        self._defaultDbName = dbName
-        self._logger.info("Connected to db '%s'." % self.defaultDbName)
+        self._logger.info("Connected to db '%s'." % dbName)
 
     def checkIsConnected(self):
         """
@@ -357,20 +365,20 @@ class Db(object):
             raise DbException(DbException.DB_EXISTS, dbName)
         self.execCommand0("CREATE DATABASE %s" % dbName)
 
-    def checkDbExists(self, dbName=None):
+    def checkDbExists(self, dbName):
         """
-        Check if database <dbName> exists, if <dbName> none, use default database.
+        Check if database <dbName> exists.
 
         @param dbName     Database name.
 
         @return boolean   True if the database exists, False otherwise.
 
-        Check if a database <dbName> exists. If it is not set, the default database
+        Check if a database <dbName> exists. If it is not set, the current database
         name will be used. Connect to the server first if connection not open
         already.
         """
-        if dbName is None and self.defaultDbName is None: return False
-        dbName = self._getDefaultDbNameIfNeeded(dbName)
+        if dbName is None:
+            return False
         self.connectToDbServer()
         cmd = "SELECT COUNT(*) FROM information_schema.schemata "
         cmd += "WHERE schema_name = '%s'" % dbName
@@ -384,19 +392,15 @@ class Db(object):
 
         Drop a database <dbName>. Raise exception if the database does not exists.
         Connect to the server first if connection not open already. Disconnect from
-        the database if it is the default database.
+        the database if it is the current database.
         """
         self.connectToDbServer()
         if not self.checkDbExists(dbName):
             raise DbException(DbException.DB_DOES_NOT_EXIST, dbName)
+        cDb = self.getCurrentDbName()
         self.execCommand0("DROP DATABASE %s" % dbName)
-        if dbName == self.defaultDbName:
-            self._resetDefaultDbName()
-
-    def checkIsConnectedToDb(self, dbName):
-        return (self.checkIsConnected() and
-                self._isConnectedToDb and 
-                dbName == self.defaultDbName)
+        if cDb == dbName:
+            self.disconnect()
 
     def checkTableExists(self, tableName, dbName=None):
         """
@@ -408,12 +412,13 @@ class Db(object):
         @return boolean   True if the table exists, False otherwise.
 
         Check if table <tableName> exists in database <dbName>. If <dbName> is not
-        set, the default database name will be used. Connect to the server first if
+        set, the current database name will be used. Connect to the server first if
         connection not open already.
         """
-        if dbName is None and self.defaultDbName is None: return False
-        dbName = self._getDefaultDbNameIfNeeded(dbName)
-        self.connectToDbServer()
+        if dbName is None:
+            dbName = self.getCurrentDbName()
+            if dbName is None:
+                return False
         cmd = "SELECT COUNT(*) FROM information_schema.tables "
         cmd += "WHERE table_schema = '%s' AND table_name = '%s'" % \
                (dbName, tableName)
@@ -428,11 +433,10 @@ class Db(object):
         @param dbName      Database name.
 
         Create a table <tableName> in database <dbName>. If database <dbName> is not
-        set, the default database name will be used. Connect to the server first if
+        set, the current database name will be used. Connect to the server first if
         connection not open already. Raises exception if the table already exists.
         """
-        dbName = self._getDefaultDbNameIfNeeded(dbName)
-        self.connectToDbServer()
+        dbName = self._getCurrentDbNameIfNeeded(dbName)
         if self.checkTableExists(tableName, dbName):
             raise DbException(DbException.TB_EXISTS)
         self.execCommand0("CREATE TABLE %s.%s %s" % (dbName,tableName,tableSchema))
@@ -445,11 +449,10 @@ class Db(object):
         @param dbName     Database name.
 
         Drop table <tableName> in database <dbName>. If <dbName> is not set, the
-        default database name will be used. Connect to the server first if
+        current database name will be used. Connect to the server first if
         connection not open already. Raises exception if the table does not exist.
         """
-        dbName = self._getDefaultDbNameIfNeeded(dbName)
-        self.connectToDbServer()
+        dbName = self._getCurrentDbNameIfNeeded(dbName)
         if not self.checkTableExists(tableName, dbName):
             raise DbException(DbException.TB_DOES_NOT_EXIST)
         self.execCommand0("DROP TABLE %s.%s %s" % (dbName, tableName, tableSchema))
@@ -463,12 +466,11 @@ class Db(object):
 
         @return boolean   True if the table is a view. False otherwise.
 
-        If <dbName> is not set, the default database name will be used. Connect to
+        If <dbName> is not set, the current database name will be used. Connect to
         the server first if connection not open already. Raises exception if the
         table does not exist.
         """
-        dbName = self._getDefaultDbNameIfNeeded(dbName)
-        self.connectToDbServer()
+        dbName = self._getCurrentDbNameIfNeeded(dbName)
         if not self.checkTableExists(tableName, dbName):
             raise DbException(DbException.TB_DOES_NOT_EXIST)
         return self.execCommand1("SELECT COUNT(*) FROM information_schema.tables "
@@ -484,8 +486,7 @@ class Db(object):
 
         @return string    Contents of the table.
         """
-        dbName = self._getDefaultDbNameIfNeeded(dbName)
-        self.connectToDbServer()
+        dbName = self._getCurrentDbNameIfNeeded(dbName)
         ret = self.execCommandN("SELECT * FROM %s.%s" % (dbName, tableName))
         s = StringIO.StringIO()
         s.write(tableName)
@@ -582,18 +583,8 @@ class Db(object):
             cursor.execute(command)
         except (MySQLdb.Error, MySQLdb.OperationalError) as e:
             msg = "Database Error [%d]: %s." % (e.args[0],e.args[1])
-            if e.args[0] in self._mysqlConnErrors:
-                self._logger.info(
-                    "%s Connection-related failure, trying to recover..." % msg)
-                self._closeConnection()
-                self._isConnectedToDb = False
-                cursor = None
-                if self.defaultDbName is not None:
-                    self.connectToDb(self.defaultDbName)
-                return self._execCommand(command, nRowsRet)
-            else:
-                self._logger.error("Command '%s' failed: %s" % (command, msg))
-                raise DbException(DbException.SERVER_ERROR, msg)
+            self._logger.error("Command '%s' failed: %s" % (command, msg))
+            raise DbException(DbException.SERVER_ERROR, msg)
         except MySQLdb.Warning as w:
             self._logger.warning("Command '%s' produced warning: %s" % \
                                      (command, w.message))
@@ -609,21 +600,28 @@ class Db(object):
         cursor.close()
         return ret
 
-    def _getDefaultDbNameIfNeeded(self, dbName):
+    def getCurrentDbName(self):
+        """
+        Return the name of current database.
+        """
+        self.connectToDbServer()
+        cmd = "SELECT DATABASE()"
+        return self.execCommand1(cmd)
+
+    def _getCurrentDbNameIfNeeded(self, dbName):
         """
         Get valid dbName.
 
         @param dbName     Database name.
+        @return string    Return <dbName> if it is valid, otherwise if the
+                          current database name if valid return it.
 
-        @return string    Return <dbName> if it is valid, otherwise if the the
-                          default database name if valid return it.
-
-        Get valid dbName (the one passed, or default database name). If neither is
+        Get valid dbName (the one passed, or current database name). If neither is
         valid, raise exception.
         """
         if dbName is not None: 
             return dbName
-        dbName = self.defaultDbName
+        dbName = self.getCurrentDbName()
         if dbName is None:
             raise DbException(DbException.INVALID_DB_NAME, "<None>")
         return dbName
@@ -636,14 +634,6 @@ class Db(object):
         if self._conn is None: return
         self._conn.close()
         self._conn = None
-
-    def _resetDefaultDbName(self):
-        """
-        Reset the default database and disconnect from the server.
-        """
-        self._logger.debug("resetting default db name")
-        self._defaultDbName = None
-        self.disconnect()
 
     def _parseOptionFile(self):
         """
@@ -672,6 +662,10 @@ class Db(object):
         return ret
 
     @property
+    def sleepLen(self):
+        return self._sleepLen
+
+    @property
     def socket(self):
         return self._socket
 
@@ -694,10 +688,6 @@ class Db(object):
     @property
     def optionFile(self):
         return self._optionFile
-
-    @property
-    def defaultDbName(self):
-        return self._defaultDbName
 
     @property
     def local_infile(self):
