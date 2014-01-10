@@ -149,8 +149,8 @@ class Db(object):
         self._logger.debug("db __init__")
         self._isConnectedToDb = False
         self._sleepLen = sleepLen
-        self._maxRetryCount = maxRetryCount
-        self._curRetryCount = 1
+        self._attemptMaxNo = 1+maxRetryCount
+        self._attemptNo = 1
         self._socket = socket
         self._host = host
         self._port = port
@@ -191,12 +191,12 @@ class Db(object):
                                    "host=None")
                 raise DbException(DbException.MISSING_CON_INFO, 
                                   "invalid socket and host name")
-            elif self.port<1 or self.port>65534:
+            elif self.port<1 or self.port>65535:
                 self._logger.error("Missing connection info: socket=None, " +
-                                   "port is invalid (must be within 1-65534), " +
+                                   "port is invalid (must be within 1-65535), " +
                                    "got: %d" % self.port)
                 raise DbException(DbException.MISSING_CON_INFO, 
-                                  "invalid port number, must be within 1-65534")
+                                  "invalid port number, must be within 1-65535")
 
     def __del__(self):
         """
@@ -222,7 +222,7 @@ class Db(object):
         if dbName is not None:
             kwargs["dbName"] = dbName
         self._logger.info("Connecting as '%s', attempt %d of %d" % \
-                              (self.user, self._curRetryCount, self._maxRetryCount))
+                              (self.user, self._attemptNo, self._attemptMaxNo))
         if (self._host is not None and self._port is not None and
             (self.socket is None or preferTcp)):
             cProt = "tcp"
@@ -233,7 +233,7 @@ class Db(object):
                               "file or a host name and port must be specified")
         # try connecting using preferred method
         if self._tryConnect(kwargs, cProt):
-            self._curRetryCount = 1
+            self._attemptNo = 1
             return
         self._logger.debug("Connecting via '%s' failed, trying alternative" % cProt)
         ret = None
@@ -242,9 +242,9 @@ class Db(object):
         elif cProt == "socket" and self.host is not None and self.port is not None:
             ret = self._tryConnect(kwargs, "tcp")
         if ret:
-            self._curRetryCount = 1
+            self._attemptNo = 1
         else:
-            self._curRetryCount += 1
+            self._attemptNo += 1
             self._logger.debug("sleeping %s sec" % self.sleepLen)
             sleep(self.sleepLen)
             self.connectToDbServer(dbName, preferTcp)
@@ -277,7 +277,7 @@ class Db(object):
             self._logger.info("Failed to establish MySQL connection " +
                    "using %s. [%d: %s]" % (connProtocol, e.args[0], e.args[1]))
             if e[0] in self._mysqlConnErrors and \
-                    self._curRetryCount < self._maxRetryCount:
+                    self._attemptNo < self._attemptMaxNo:
                 return False
             self._logger.error("Can't recover, sorry")
             raise DbException(DbException.SERVER_CONNECT, "%d: %s" % e.args[:2])
