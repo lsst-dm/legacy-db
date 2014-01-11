@@ -161,20 +161,20 @@ class Db(object):
         self._local_infile = local_infile
 
         if self.optionFile is not None:
-            self.optionFile = os.path.expanduser(optionFile)
+            self._optionFile = os.path.expanduser(optionFile)
             ret = self._parseOptionFile()
-            if "socket"   in ret and socket is None: self.socket = ret["socket"]
-            if "host"     in ret and host   is None: self.host   = ret["host"]
-            if "port"     in ret and port   is None: self.port   = ret["port"]
-            if "user"     in ret and user   is None: self.user   = ret["user"]
-            if "password" in ret and passwd is None: self.passwd = ret["password"]
+            if "socket"   in ret and socket is None: self._socket = ret["socket"]
+            if "host"     in ret and host   is None: self._host   = ret["host"]
+            if "port"     in ret and port   is None: self._port   = ret["port"]
+            if "user"     in ret and user   is None: self._user   = ret["user"]
+            if "password" in ret and passwd is None: self._passwd = ret["password"]
         if self.port is not None:
-            self.port = int(self.port)
+            self._port = int(self.port)
         if self.passwd is None:
-            self.passwd = ''
+            self._passwd = ''
         # MySQL defaults to socket if it sees "localhost". 127.0.0.1 will force TCP.
         if self.host == "localhost":
-            self.host = "127.0.0.1"
+            self._host = "127.0.0.1"
             self._logger.warning('"localhost" specified, switching to 127.0.0.1')
         # MySQL connection-related error numbers. 
         # These are typically recoverable by reconnecting.
@@ -705,27 +705,3 @@ class Db(object):
     @property
     def local_infile(self):
         return self._local_infile
-
-    @socket.setter
-    def socket(self, v):
-        self._socket = v
-
-    @host.setter
-    def host(self, v):
-        self._host = v
-
-    @port.setter
-    def port(self, v):
-        self._port = v
-
-    @user.setter
-    def user(self, v):
-        self._user = v
-
-    @passwd.setter
-    def passwd(self, v):
-        self._passwd = v
-
-    @optionFile.setter
-    def optionFile(self, f):
-        self._optionFile = f
