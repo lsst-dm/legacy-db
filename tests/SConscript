@@ -1,12 +1,11 @@
 # -*- python -*-
-Import("env")
 import glob
+import subprocess
+Import('env')
 
-#
-# Tests
-#
-import lsst.tests
-
-tests = lsst.tests.Control(env, verbose = True)
-tests.run("testDbLocal.py")
-tests.run("testDbRemote.py")
+for f in env.Glob("*.py"):
+    print "Running test: ", f
+    app = str(f.abspath)
+    if subprocess.call(app):
+        print f, "FAILED"
+        Exit(2)
