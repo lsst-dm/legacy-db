@@ -125,7 +125,8 @@ class Db(object):
     """
 
     def __init__(self, user=None, passwd=None, host=None, port=None, socket=None,
-                 optionFile=None, local_infile=0, sleepLen=3, maxRetryCount=0):
+                 optionFile=None, local_infile=0, sleepLen=3, maxRetryCount=0,
+                 preferTcp=False):
         """
         Create a Db instance.
 
@@ -143,6 +144,11 @@ class Db(object):
                           failure. There is a 3 sec sleep between each retry.
                           Default is 1200 (which translates to one hour).
 
+        If multiple ways of connecting are specified, only the "first one" will be
+        used. The order of importance wrt socket vs host:port is decided base on 
+        preferTcp flag. Values provided throuch options are more important than
+        values provided through optionFile.
+
         Raise exception if both host/port AND socket are invalid.
         """
         self._conn = None
@@ -152,52 +158,81 @@ class Db(object):
         self._sleepLen = sleepLen
         self._attemptMaxNo = 1+maxRetryCount
         self._attemptNo = 1
-        self._socket = socket
-        self._host = host
-        self._port = port
-        self._user = user
-        self._passwd = passwd
-        self._optionFile = optionFile
-        self._local_infile = local_infile
 
-        if self.optionFile is not None:
-            self._optionFile = os.path.expanduser(optionFile)
+        self._kwargs = {
+            "local_infile": local_infile
+        }
+
+        self._connProt = None
+        # set socket/host/port using values from options
+        if host is not None and port is not None:
+            if preferTcp or socket is None:
+                self._kwargs["host"] = host
+                self._kwargs["port"] = int(port)
+                self._connProt = "tcp"
+        if "host" not in self._kwargs and socket is not None:
+            self._kwargs["unix_socket"] = socket
+            self._connProt = "socket"
+
+        # set user/password using values from options
+        if user is not None:
+            self._kwargs["user"] = user
+            self._kwargs["passwd"] = passwd
+
+        # deal with optionFile
+        if optionFile is not None:
+            self._kwargs["read_default_file"] = os.path.expanduser(optionFile)
             ret = self._parseOptionFile()
-            if "socket"   in ret and socket is None: self._socket = ret["socket"]
-            if "host"     in ret and host   is None: self._host   = ret["host"]
-            if "port"     in ret and port   is None: self._port   = ret["port"]
-            if "user"     in ret and user   is None: self._user   = ret["user"]
-            if "password" in ret and passwd is None: self._passwd = ret["password"]
-        if self.port is not None:
-            self._port = int(self.port)
-        if self.passwd is None:
-            self._passwd = ''
+            if self._connProt is None:
+                if "host" in ret and "port" in ret and \
+                        (preferTcp or "socket" not in ret):
+                    if ret["host"] is not None and ret["port"] is not None:
+                        self._kwargs["host"] = ret["host"]
+                        self._kwargs["port"] = int(ret["port"])
+                        self._connProt = "tcp"
+                elif "socket" in ret:
+                    if ret["socket"] is not None:
+                        self._kwargs["unix_socket"] = ret["socket"]
+                        self._connProt = "socket"
+            # if user/password not set through options, get them from optionFile
+            if "user" in ret and user is None:
+                self._kwargs["user"  ] = ret["user"]
+                if "password" in ret:
+                    self._kwargs["passwd"] = ret["password"]
+
+        # final validation
+        if self._connProt is None:
+            self._logger.error("Missing connection info: socket=None, " +
+                               "host=None")
+            raise DbException(DbException.MISSING_CON_INFO, 
+                              "invalid socket and host name")
+        if "user" not in self._kwargs or \
+           "user" is self._kwargs and self._kwargs["user"] is None:
+            self._logger.error("Missing user credentials: user is None.")
+            raise DbException(DbException.MISSING_CON_INFO, "invalid username")
+
+        # final cleanup of host/port/password
+        if "password" in self._kwargs and self._kwargs["passwd"] is None:
+            self._kwargs["passwd"] = ''
         # MySQL defaults to socket if it sees "localhost". 127.0.0.1 will force TCP.
-        if self.host == "localhost":
-            self._host = "127.0.0.1"
+        if "host" in self._kwargs and self._kwargs["host"] == "localhost":
+            self._kwargs["host"] = "127.0.0.1"
             self._logger.warning('"localhost" specified, switching to 127.0.0.1')
+        if "port" in self._kwargs and \
+                (self._kwargs["port"]<1 or self._kwargs["port"]>65535):
+            self._logger.error("Missing connection info: socket=None, " +
+                               "port is invalid (must be within 1-65535), " +
+                               "got: %d" % self._kwargs["port"])
+            raise DbException(DbException.MISSING_CON_INFO, 
+                              "invalid port number, must be within 1-65535")
         # MySQL connection-related error numbers. 
         # These are typically recoverable by reconnecting.
         self._mysqlConnErrors = [2002, 2003, 2006, 2013] 
         # treat MySQL warnings as errors (catch them and throw DbException
         # with a special error code)
         warnings.filterwarnings('error', category=MySQLdb.Warning)
-
-        if self.user is None:
-            self._logger.error("Missing user credentials: user is None.")
-            raise DbException(DbException.MISSING_CON_INFO, "invalid username")
-        if self.socket is None:
-            if self.host is None:
-                self._logger.error("Missing connection info: socket=None, " +
-                                   "host=None")
-                raise DbException(DbException.MISSING_CON_INFO, 
-                                  "invalid socket and host name")
-            elif self.port<1 or self.port>65535:
-                self._logger.error("Missing connection info: socket=None, " +
-                                   "port is invalid (must be within 1-65535), " +
-                                   "got: %d" % self.port)
-                raise DbException(DbException.MISSING_CON_INFO, 
-                                  "invalid port number, must be within 1-65535")
+        self._logger.info("db __init__, connProt: %s" % self._connProt + \
+                              str(self._kwargs))
 
     def __del__(self):
         """
@@ -206,79 +241,41 @@ class Db(object):
         self._logger.debug("db __del__")
         self.disconnect()
 
-    def connect(self, dbName=None, preferTcp=False):
+    def connect(self, dbName=None):
         """
         Connect to Database Server. If dbName is provided. it connects to the
-        database. Priority of socket vs host/port is given through preferTcp flag.
+        database.
         """
         if self.checkIsConnected():
             return
-        kwargs = { 
-            "user":         self.user,
-            "passwd":       self.passwd,
-            "local_infile": self.local_infile,
-        }
-        if self.optionFile:
-            kwargs["read_default_file"] = self.optionFile
-        if dbName is not None:
-            kwargs["dbName"] = dbName
-        self._logger.info("Connecting as '%s', attempt %d of %d" % \
-                              (self.user, self._attemptNo, self._attemptMaxNo))
-        if (self._host is not None and self._port is not None and
-            (self.socket is None or preferTcp)):
-            cProt = "tcp"
-        elif self.socket is not None:
-            cProt = "socket"
-        else:
-            raise DbException(DbException.MISSING_CON_INFO, "either a socket "
-                              "file or a host name and port must be specified")
-        # try connecting using preferred method
-        if self._tryConnect(kwargs, cProt):
+        self._logger.info("Connecting, attempt %d of %d" % \
+                              (self._attemptNo, self._attemptMaxNo))
+        if self._tryConnect(dbName):
             self._attemptNo = 1
             return
-        self._logger.debug("Connecting via '%s' failed, trying alternative" % cProt)
-        ret = None
-        if cProt == "tcp" and self.socket is not None:
-            ret = self._tryConnect(kwargs, "socket")
-        elif cProt == "socket" and self.host is not None and self.port is not None:
-            ret = self._tryConnect(kwargs, "tcp")
-        if ret:
-            self._attemptNo = 1
         else:
             if self._attemptMaxNo == 1:
                 raise DbException(DbException.SERVER_CONNECT)
             self._attemptNo += 1
             self._logger.debug("sleeping %s sec" % self.sleepLen)
             sleep(self.sleepLen)
-            self.connect(dbName, preferTcp)
+            self.connect(dbName)
 
-    def _tryConnect(self, kwargs, connProtocol):
+    def _tryConnect(self, dbName):
         """
-        Try to connect using kwargs arguments, use method is instructed by
-        connectProtocol. Return True on success, False on recoverable error, and
+        Try to connect. Return True on success, False on recoverable error, and
         raise exception on non-recoverable error.
         """
-        self._logger.debug("tryConnect, %s, %s" % (connProtocol, str(kwargs)))
-        if connProtocol == "tcp":
-            kwargs["host"] = self.host
-            kwargs["port"] = self.port
-            if "unix_socket" in kwargs: del kwargs["unix_socket"]
-            self._logger.info("Using %s:%s'" % (self.host, self.port))
-        elif connProtocol == "socket":
-            kwargs["unix_socket"] = self.socket
-            if "host" in kwargs: del kwargs["host"]
-            if "port" in kwargs: del kwargs["port"]
-            self._logger.info("Using socket '%s'" % self.socket)
-        else:
-            self._logger.debug("No valid protocol in _tryConnect")
-            return False
+        self._logger.debug("tryConnect")
         conn = None
         try:
-            self._logger.debug("mysql.connect. " + str(kwargs))
-            conn = MySQLdb.connect(**kwargs)
+            self._logger.debug("mysql.connect. " + str(self._kwargs))
+            conn = MySQLdb.connect(**self._kwargs)
+            if dbName is not None:
+                conn.select_db(dbName)
         except MySQLdb.Error as e:
             self._logger.info("Failed to establish MySQL connection " +
-                   "using %s. [%d: %s]" % (connProtocol, e.args[0], e.args[1]))
+                   "using %s. [%d: %s]" % (self._connProt, e.args[0], e.args[1]))
             if e[0] in self._mysqlConnErrors and \
                  (self._attemptNo < self._attemptMaxNo or self._attemptMaxNo == 1):
                 return False
@@ -659,49 +656,24 @@ class Db(object):
         # don't want any surprises.
         ret = {}
         options = ("socket", "host", "port", "user", "password")
-        for o in options: ret[o] = None
 
-        if not os.path.isfile(self.optionFile):
-            self._logger.error("Can't find '%s'." % self.optionFile)
-            raise DbException(DbException.INVALID_OPT_FILE, self.optionFile)
+        if "read_default_file" not in self._kwargs:
+            return ret
+
+        oF = self._kwargs["read_default_file"]
+        if not os.path.isfile(oF):
+            self._logger.error("Can't find '%s'." % oF)
+            raise DbException(DbException.INVALID_OPT_FILE, oF)
 
         cnf = ConfigParser.ConfigParser()
-        cnf.read(self.optionFile)
+        cnf.read(oF)
         if cnf.has_section("client"):
             for o in options:
                 if cnf.has_option("client", o): ret[o] = cnf.get("client", o)
         self._logger.info("connection info from option file '%s': %s" % \
-                              (self.optionFile, str(ret)))
+                              (oF, str(ret)))
         return ret
 
     @property
     def sleepLen(self):
         return self._sleepLen
-
-    @property
-    def socket(self):
-        return self._socket
-
-    @property
-    def host(self):
-        return self._host
-
-    @property
-    def port(self):
-        return self._port
-
-    @property
-    def user(self):
-        return self._user
-
-    @property
-    def passwd(self):
-        return self._passwd
-
-    @property
-    def optionFile(self):
-        return self._optionFile
-
-    @property
-    def local_infile(self):
-        return self._local_infile

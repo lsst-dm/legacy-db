@@ -154,8 +154,9 @@ class TestDbLocal(unittest.TestCase):
 
     def testConn_badSocketGoodHostPort(self):
         # invalid socket, but good host/port
+        # note, it will try to use socket and will NOT fall back to host/port
         db = Db(self._user, self._pass, self._host, self._port, "/x/sock")
-        db.connect()
+        self.assertRaises(DbException, db.connect)
         db.disconnect()
 
     def testConn_invalidOptionFile(self):
