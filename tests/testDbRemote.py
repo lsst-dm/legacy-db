@@ -99,11 +99,11 @@ class TestDbRemote(unittest.TestCase):
 
     def testConn_invalidHost(self):
         db = Db(self._user, self._pass, "invalidHost", self._port)
-        self.assertRaises(DbException, db.connectToDbServer)
+        self.assertRaises(DbException, db.connect)
 
     def testConn_invalidHost(self):
         db = Db(self._user, self._pass, "dummyHost", 3036)
-        self.assertRaises(DbException, db.connectToDbServer)
+        self.assertRaises(DbException, db.connect)
 
     def testConn_invalidPortNo(self):
         self.assertRaises(DbException, Db, self._user, self._pass,self._host,987654)
@@ -111,15 +111,15 @@ class TestDbRemote(unittest.TestCase):
     def testConn_wrongPortNo(self):
         db = Db(self._user, self._pass, self._host, 1579,
                 sleepLen=0, maxRetryCount=10)
-        self.assertRaises(DbException, db.connectToDbServer)
+        self.assertRaises(DbException, db.connect)
 
     def testConn_invalidUserName(self):
         db = Db("hackr", self._pass, self._host, self._port)
         # Disabling because this can work, depending on mysql 
         # configuration, for example, it can default to ''@localhost
-        # self.assertRaises(DbException, db.connectToDbServer)
+        # self.assertRaises(DbException, db.connect)
         db = Db(self._user, "!MyPw", self._host, self._port)
-        # self.assertRaises(DbException, db.connectToDbServer)
+        # self.assertRaises(DbException, db.connect)
 
     def testIsConnected(self):
         """
@@ -133,7 +133,7 @@ class TestDbRemote(unittest.TestCase):
         db = Db(self._user, self._pass, self._host, self._port)
         self.assertFalse(db.checkIsConnected())
         # connect to server, not to db
-        db.connectToDbServer()
+        db.connect()
         self.assertTrue(db.checkIsConnected())
         # create db, still don't connect to it
         db.createDb(self._dbA)

@@ -206,7 +206,7 @@ class Db(object):
         self._logger.debug("db __del__")
         self.disconnect()
 
-    def connectToDbServer(self, dbName=None, preferTcp=False):
+    def connect(self, dbName=None, preferTcp=False):
         """
         Connect to Database Server. If dbName is provided. it connects to the
         database. Priority of socket vs host/port is given through preferTcp flag.
@@ -250,7 +250,7 @@ class Db(object):
             self._attemptNo += 1
             self._logger.debug("sleeping %s sec" % self.sleepLen)
             sleep(self.sleepLen)
-            self.connectToDbServer(dbName, preferTcp)
+            self.connect(dbName, preferTcp)
 
     def _tryConnect(self, kwargs, connProtocol):
         """
@@ -330,7 +330,7 @@ class Db(object):
         try:
             if not self.checkIsConnected():
                 self._logger.info("in useDb, connecting to server")
-                self.connectToDbServer(dbName)
+                self.connect(dbName)
             else:
                 self._logger.info("in useDb, connecting to db")
                 self._conn.select_db(dbName)
@@ -363,7 +363,7 @@ class Db(object):
         """
         if dbName is None: 
             raise DbException(DbException.INVALID_DB_NAME, "<None>")
-        self.connectToDbServer()
+        self.connect()
         if self.checkDbExists(dbName):
             raise DbException(DbException.DB_EXISTS, dbName)
         self.execCommand0("CREATE DATABASE %s" % dbName)
@@ -382,7 +382,7 @@ class Db(object):
         """
         if dbName is None:
             return False
-        self.connectToDbServer()
+        self.connect()
         cmd = "SELECT COUNT(*) FROM information_schema.schemata "
         cmd += "WHERE schema_name = '%s'" % dbName
         return 1 == self.execCommand1(cmd)
@@ -397,7 +397,7 @@ class Db(object):
         Connect to the server first if connection not open already. Disconnect from
         the database if it is the current database.
         """
-        self.connectToDbServer()
+        self.connect()
         if not self.checkDbExists(dbName):
             raise DbException(DbException.DB_DOES_NOT_EXIST, dbName)
         cDb = self.getCurrentDbName()
@@ -579,7 +579,7 @@ class Db(object):
         fail. This function catches such problems and recovers by reconnecting and
         retrying.
         """
-        self.connectToDbServer()
+        self.connect()
         try:
             self._logger.info("pinging server")
             self._conn.ping()
@@ -588,7 +588,7 @@ class Db(object):
                 self._logger.info(
                     "reconnecting because of [%d: %s]" % (e.args[0], e.args[1]))
                 self.disconnect()
-                self.connectToDbServer()
+                self.connect()
 
         cursor = self._conn.cursor()
         try:
@@ -617,7 +617,7 @@ class Db(object):
         """
         Return the name of current database.
         """
-        self.connectToDbServer()
+        self.connect()
         cmd = "SELECT DATABASE()"
         return self.execCommand1(cmd)
 

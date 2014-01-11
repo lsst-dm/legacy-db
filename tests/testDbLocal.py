@@ -114,11 +114,11 @@ class TestDbLocal(unittest.TestCase):
 
     def testConn_invalidHost(self):
         db = Db(self._user, self._pass, "invalidHost", self._port)
-        self.assertRaises(DbException, db.connectToDbServer)
+        self.assertRaises(DbException, db.connect)
 
     def testConn_invalidHost(self):
         db = Db(self._user, self._pass, "dummyHost", 3036)
-        self.assertRaises(DbException, db.connectToDbServer)
+        self.assertRaises(DbException, db.connect)
 
     def testConn_invalidPortNo(self):
         self.assertRaises(DbException, Db, self._user, self._pass,self._host,987654)
@@ -126,36 +126,36 @@ class TestDbLocal(unittest.TestCase):
     def testConn_wrongPortNo(self):
         db = Db(self._user, self._pass, self._host, 1579, 
                 sleepLen=0, maxRetryCount=10)
-        self.assertRaises(DbException, db.connectToDbServer)
+        self.assertRaises(DbException, db.connect)
 
     def testConn_invalidUserName(self):
         db = Db("hackr", self._pass, self._host, self._port)
         # Disabling because this can work, depending on MySQL 
         # configuration, for example, it can default to ''@localhost
-        # self.assertRaises(DbException, db.connectToDbServer)
+        # self.assertRaises(DbException, db.connect)
         db = Db(self._user, "!MyPw", self._host, self._port)
-        # self.assertRaises(DbException, db.connectToDbServer)
+        # self.assertRaises(DbException, db.connect)
 
     def testConn_invalidSocket(self):
         # make sure retry is disabled, otherwise it wil try to reconnect 
         # (it will assume the server is down and socket valid).
         db = Db(self._user, self._pass, socket="/x/sock", maxRetryCount=0)
-        self.assertRaises(DbException, db.connectToDbServer)
+        self.assertRaises(DbException, db.connect)
 
     def testConn_badHostPortGoodSocket(self):
         # invalid host, but good socket
         db = Db(self._user, self._pass, "invalidHost", self._port, self._sock)
-        db.connectToDbServer()
+        db.connect()
         db.disconnect()
         # invalid port but good socket
         db = Db(self._user, self._pass, self._host, 9876543, self._sock)
-        db.connectToDbServer()
+        db.connect()
         db.disconnect()
 
     def testConn_badSocketGoodHostPort(self):
         # invalid socket, but good host/port
         db = Db(self._user, self._pass, self._host, self._port, "/x/sock")
-        db.connectToDbServer()
+        db.connect()
         db.disconnect()
 
     def testConn_invalidOptionFile(self):
@@ -169,7 +169,7 @@ class TestDbLocal(unittest.TestCase):
         f, fN = tempfile.mkstemp(suffix=".cnf", dir="/tmp", text="True")
         try:
             db = Db(optionFile=fN)
-            db.connectToDbServer()
+            db.connect()
         except DbException:
             pass
         # add socket only
@@ -179,7 +179,7 @@ class TestDbLocal(unittest.TestCase):
         f.close()
         try:
             db = Db(optionFile=fN)
-            db.connectToDbServer()
+            db.connect()
         except DbException:
             pass
         os.remove(fN)
@@ -196,7 +196,7 @@ class TestDbLocal(unittest.TestCase):
         db = Db(self._user, self._pass, self._host, self._port, self._sock)
         self.assertFalse(db.checkIsConnected())
         # connect to server, not to db
-        db.connectToDbServer()
+        db.connect()
         self.assertTrue(db.checkIsConnected())
         # create db, still don't connect to it
         db.createDb(self._dbA)
@@ -324,7 +324,7 @@ class TestDbLocal(unittest.TestCase):
         """
         db = Db(self._user, self._pass, self._host, self._port, self._sock,
                 sleepLen=5, maxRetryCount=10)
-        db.connectToDbServer()
+        db.connect()
         db.createDb(self._dbA)
         #time.sleep(10)
         db.createDb(self._dbB)
