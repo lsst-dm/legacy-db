@@ -112,6 +112,13 @@ class TestDbLocal(unittest.TestCase):
         db.dropDb(self._dbA)
         db.disconnect()
 
+    def testUseDb(self):
+        db = Db(self._user, self._pass, socket=self._sock)
+        db.createDb(self._dbA)
+        db.useDb(self._dbA)
+        db.createTable("t1", "(i int)")
+        self.assertRaises(DbException, db.useDb, "invDbName")
+
     def testConn_invalidHost(self):
         db = Db(self._user, self._pass, "invalidHost", self._port)
         self.assertRaises(DbException, db.connect)
@@ -389,8 +396,8 @@ class TestDbLocal(unittest.TestCase):
         db.createTable("t1", "(i int)")
         db.execCommand0("LOAD DATA LOCAL INFILE '%s' INTO TABLE t1" % fN)
         x =  db.execCommand1("SELECT COUNT(*) FROM t1")
-        assert(8 == db.execCommand1("SELECT COUNT(*) FROM t1"))
-        assert(3 == db.execCommand1("SELECT COUNT(*) FROM t1 WHERE i=4"))
+        assert(8 == db.execCommand1("SELECT COUNT(*) FROM t1")[0])
+        assert(3 == db.execCommand1("SELECT COUNT(*) FROM t1 WHERE i=4")[0])
 
         # let's add some confusing data to the loaded file, it will get truncated
         f = open(fN,'w')

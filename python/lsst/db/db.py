@@ -397,7 +397,8 @@ class Db(object):
         self.connect()
         cmd = "SELECT COUNT(*) FROM information_schema.schemata "
         cmd += "WHERE schema_name = '%s'" % dbName
-        return 1 == self.execCommand1(cmd)
+        count = self.execCommand1(cmd)
+        return count[0] == 1
 
     def dropDb(self, dbName, mustExist=True):
         """
@@ -446,7 +447,8 @@ class Db(object):
         cmd = "SELECT COUNT(*) FROM information_schema.tables "
         cmd += "WHERE table_schema = '%s' AND table_name = '%s'" % \
                (dbName, tableName)
-        return 1 == self.execCommand1(cmd)
+        count = self.execCommand1(cmd)
+        return count[0] == 1
 
     def createTable(self, tableName, tableSchema, dbName=None, mayExist=False):
         """
@@ -512,9 +514,10 @@ class Db(object):
         dbName = self._getCurrentDbNameIfNeeded(dbName)
         if not self.checkTableExists(tableName, dbName):
             raise DbException(DbException.TB_DOES_NOT_EXIST)
-        return self.execCommand1("SELECT COUNT(*) FROM information_schema.tables "
-                                 "WHERE table_schema='%s' AND table_name='%s' AND "
-                                 "table_type=\'VIEW\'" % (dbName, tableName))
+        ret = self.execCommand1("SELECT COUNT(*) FROM information_schema.tables "
+                                "WHERE table_schema='%s' AND table_name='%s' AND "
+                                "table_type=\'VIEW\'" % (dbName, tableName))
+        return ret[0]
 
     def getTableContent(self, tableName, dbName=None):
         """
@@ -541,9 +544,10 @@ class Db(object):
         """
         Check if user <hostName>@<userName> exists.
         """
-        return 0 != self.execCommand1(
+        ret = self.execCommand1(
             "SELECT COUNT(*) FROM mysql.user WHERE user='%s' AND host='%s'" % \
             (userName, hostName))
+        return ret[0] != 0
 
     def loadSqlScript(self, scriptPath, dbName):
         """
@@ -649,7 +653,7 @@ class Db(object):
         if nRowsRet == 0:
             ret = ""
         elif nRowsRet == 1:
-            ret = cursor.fetchone()[0]
+            ret = cursor.fetchone()
             self._logger.debug("Got: %s" % str(ret))
         else:
             ret = cursor.fetchall()
@@ -663,7 +667,7 @@ class Db(object):
         """
         self.connect()
         cmd = "SELECT DATABASE()"
-        return self.execCommand1(cmd)
+        return self.execCommand1(cmd)[0]
 
     def _getCurrentDbNameIfNeeded(self, dbName):
         """
