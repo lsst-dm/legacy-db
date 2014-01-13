@@ -553,28 +553,26 @@ class Db(object):
             (userName, hostName))
         return ret[0] != 0
 
-    def loadSqlScript(self, scriptPath, dbName):
+    def loadSqlScript(self, scriptPath, dbName=None):
         """
         Load sql script from the file in <scriptPath> into database <dbName>.
 
         @param scriptPath Path the the SQL script.
-        @param dbName     Database name.
+        @param dbName     Database name (optional).
         """
-        self._logger.info("loading script %s into db %s" %(scriptPath,dbName))
-        if self.passwd:
-            if self.socket is None:
-                cmd = 'mysql -h%s -P%s -u%s -p%s %s' % \
-                (self.host, self.port, self.user, self.passwd, dbName)
-            else:
-                cmd = 'mysql -S%s -u%s -p%s %s' % \
-                (self.socket, self.user,self.passwd, dbName)
-        else:
-            if self.socket is None:
-                cmd = 'mysql -h%s -P%s -u%s %s' % \
-                (self.host, self.port, self.user, dbName)
-            else:
-                cmd = 'mysql -S%s -u%s %s' % \
-                (self.socket, self.user, dbName)
+        dbInfo = " into db '%s'." % dbName if dbName is not None else ""
+        self._logger.info("Loading script %s%s" %(scriptPath,dbInfo))
+
+        cmd = 'mysql --user %s' % self._kwargs["user"]
+        if self._connProt == "tcp":
+            cmd += ' --host %s --port %s' % \
+                (self._kwargs["host"], self._kwargs["port"])
+        elif self._connProt == "socket":
+            cmd += ' --socket %s' % self._kwargs["unix_socket"]
+        if self._kwargs["passwd"] != "":
+            cmd += ' --password=%s' % self._kwargs["passwd"]
+        if dbName is not None:
+            cmd += ' %s' % dbName
         self._logger.debug("cmd is %s" % cmd)
         with file(scriptPath) as scriptFile:
             if subprocess.call(cmd.split(), stdin=scriptFile) != 0:

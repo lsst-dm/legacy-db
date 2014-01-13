@@ -381,6 +381,35 @@ class TestDbLocal(unittest.TestCase):
         db.dropDb(self._dbA)
         db.dropDb(self._dbB)
 
+    def testLoadSqlScriptNoDb(self):
+        f, fN = tempfile.mkstemp(suffix=".csv", dir="/tmp", text="True")
+        f = open(fN,'w')
+        f.write("create database %s;\n" % self._dbA)
+        f.write("use %s;\n" % self._dbA)
+        f.write("create table t(i int);\n")
+        f.write("insert into t values (1), (2), (2), (5);\n")
+        f.close()
+        db = Db(self._user, self._pass, self._host, self._port)
+        db.loadSqlScript(fN)
+        assert(10 == db.execCommand1("select sum(i) from %s.t" % self._dbA)[0])
+        db.dropDb(self._dbA)
+        db.disconnect()
+        os.remove(fN)
+
+    def testLoadSqlScriptWithDb(self):
+        f, fN = tempfile.mkstemp(suffix=".csv", dir="/tmp", text="True")
+        f = open(fN,'w')
+        f.write("create table t(i int, d double);\n")
+        f.write("insert into t values (1, 1.1), (2, 2.2);\n")
+        f.close()
+        db = Db(self._user, self._pass, self._host, self._port)
+        db.createDb(self._dbA)
+        db.loadSqlScript(fN, self._dbA)
+        assert(3 == db.execCommand1("select sum(i) from %s.t" % self._dbA)[0])
+        db.dropDb(self._dbA)
+        db.disconnect()
+        os.remove(fN)
+
     def testLoadDataInFile(self):
         """
         Testing "LOAD DATA INFILE..."
