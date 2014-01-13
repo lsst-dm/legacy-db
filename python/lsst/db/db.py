@@ -125,7 +125,9 @@ class Db(object):
     lost connection, It also implements some useful functions, like creating
     databases/tables. Connection is done either through host/port or socket (at
     least one of these must be provided). Password can be empty. If it can't
-    connect, it will retry (and sleep).
+    connect, it will retry (and sleep). Public functions do not have to call 
+    "connect()" - ff connection is needed and is not ready, the functions will
+    establish it first.
     """
 
     def __init__(self, user=None, passwd=None, host=None, port=None, socket=None,
@@ -275,8 +277,9 @@ class Db(object):
 
     def _tryConnect(self, dbName):
         """
-        Try to connect. Return True on success, False on recoverable error, and
-        raise exception on non-recoverable error.
+        Try to connect using appropriate method (tcp or socket). Return True on
+        success, False on recoverable error, and raise exception on non-recoverable
+        error.
         """
         self._logger.debug("tryConnect")
         conn = None
@@ -356,7 +359,7 @@ class Db(object):
 
     def checkIsConnected(self):
         """
-        Check if there is connection to the server.
+        Return True if connection is established, False otherwise.
         """
         return self._conn != None and self._conn.open
 
@@ -367,10 +370,8 @@ class Db(object):
         @param dbName      Database name.
         @param mayExist    Flag indicating what to do if the database exists.
 
-        Create a new database <dbName>. Raise exception if the database already
-        exists and mayExist is False. Connect to the server first if connection not
-        open already. Note,  it will not connect to that database and it will not
-        make it default.
+        Raise exception if the database already exists and mayExist is False.
+        Note, it will not connect to that database and it will not make it default.
         """
         if dbName is None: 
             raise DbException(DbException.INVALID_DB_NAME, "<None>")
@@ -386,15 +387,9 @@ class Db(object):
 
     def checkDbExists(self, dbName):
         """
-        Check if database <dbName> exists.
+        Return True if database <dbName> exists, False otherwise.
 
         @param dbName     Database name.
-
-        @return boolean   True if the database exists, False otherwise.
-
-        Check if a database <dbName> exists. If it is not set, the current database
-        name will be used. Connect to the server first if connection not open
-        already.
         """
         if dbName is None:
             return False
@@ -411,14 +406,11 @@ class Db(object):
         @param dbName     Database name.
         @param mustExist  Flag indicating what to do if the database does not exist.
 
-        Drop a database <dbName>. Raise exception if the database does not exists
-        and the flag mustExist is not set to False. Connect to the server first if
-        connection not open already. Disconnect from the database if it is the
-        current database.
+        Raise exception if the database does not exists and the flag mustExist is
+        not set to False. Disconnect from the database if it is the current
+        database.
         """
         self.connect()
-        #if not self.checkDbExists(dbName):
-        #    raise DbException(DbException.DB_DOES_NOT_EXIST, dbName)
         cDb = self.getCurrentDbName()
         try:
             self.execCommand0("DROP DATABASE %s" % dbName)
@@ -433,16 +425,12 @@ class Db(object):
 
     def checkTableExists(self, tableName, dbName=None):
         """
-        Check if table <tableName> exists in database <dbName>.
+        Return True if table <tableName> exists in database <dbName>.
 
         @param tableName  Table name.
         @param dbName     Database name.
 
-        @return boolean   True if the table exists, False otherwise.
-
-        Check if table <tableName> exists in database <dbName>. If <dbName> is not
-        set, the current database name will be used. Connect to the server first if
-        connection not open already.
+        If <dbName> is not set, the current database name will be used.
         """
         if dbName is None:
             dbName = self.getCurrentDbName()
@@ -463,10 +451,9 @@ class Db(object):
         @param dbName      Database name.
         @param mayExist    Flag indicating what to do if the database exists.
 
-        Create a table <tableName> in database <dbName>. If database <dbName> is not
-        set, the current database name will be used. Connect to the server first if
-        connection not open already. Raises exception if the table already exists
-        and mayExist flag is not say to True.
+        If database <dbName> is not set, the current database name will be used.
+        Raise exception if the table already exists and mayExist flag is not say to
+        True.
         """
         dbName = self._getCurrentDbNameIfNeeded(dbName)
         try:
@@ -487,10 +474,9 @@ class Db(object):
         @param dbName     Database name.
         @param mustExist  Flag indicating what to do if the database does not exist.
 
-        Drop table <tableName> in database <dbName>. If <dbName> is not set, the
-        current database name will be used. Connect to the server first if
-        connection not open already. Raises exception if the table does not exist
-        and the mustExist flag is not set to False.
+        If <dbName> is not set, the current database name will be used. Raise
+        exception if the table does not exist and the mustExist flag is not set to
+        False.
         """
         dbName = self._getCurrentDbNameIfNeeded(dbName)
         try:
@@ -504,16 +490,15 @@ class Db(object):
 
     def isView(self, tableName, dbName=None):
         """
-        Check if the table <tableName> is a view.
+        Return True if the table <tableName> is a view, False otherwise.
 
         @param tableName  Table name.
         @param dbName     Database name.
 
         @return boolean   True if the table is a view. False otherwise.
 
-        If <dbName> is not set, the current database name will be used. Connect to
-        the server first if connection not open already. Raises exception if the
-        table does not exist.
+        If <dbName> is not set, the current database name will be used. Raise
+        exception if the table does not exist.
         """
         dbName = self._getCurrentDbNameIfNeeded(dbName)
         if not self.checkTableExists(tableName, dbName):
@@ -525,7 +510,7 @@ class Db(object):
 
     def getTableContent(self, tableName, dbName=None):
         """
-        Get contents of the table <tableName>. Start connection if necessary.
+        Get contents of the table <tableName>.
 
         @param tableName  Table name.
         @param dbName     Database name.
@@ -546,7 +531,7 @@ class Db(object):
 
     def checkUserExists(self, userName, hostName):
         """
-        Check if user <hostName>@<userName> exists.
+        Return True if user <hostName>@<userName> exists, False otherwise.
         """
         ret = self.execCommand1(
             "SELECT COUNT(*) FROM mysql.user WHERE user='%s' AND host='%s'" % \
@@ -555,7 +540,7 @@ class Db(object):
 
     def loadSqlScript(self, scriptPath, dbName=None):
         """
-        Load sql script from the file in <scriptPath> into database <dbName>.
+        Load sql script from the file <scriptPath> into database <dbName>.
 
         @param scriptPath Path the the SQL script.
         @param dbName     Database name (optional).
@@ -616,10 +601,8 @@ class Db(object):
 
         @return string Results from the query. Empty string if not results.
 
-        If this function is called after database server was restarted, or if the
-        connection timed out because of long period of inactivity, the command will
-        fail. This function catches such problems and recovers by reconnecting and
-        retrying.
+        Ensure the connection is active prior to running the command, re-establish
+        it if needed.
         """
         self.connect()
         try:
@@ -672,14 +655,12 @@ class Db(object):
 
     def _getCurrentDbNameIfNeeded(self, dbName):
         """
-        Get valid dbName.
+        Return dbName if it is not None, otherwise currentDb if it is not not,
+        otherwise raise an exception.
 
         @param dbName     Database name.
         @return string    Return <dbName> if it is valid, otherwise if the
-                          current database name if valid return it.
-
-        Get valid dbName (the one passed, or current database name). If neither is
-        valid, raise exception.
+                          current database name if valid return it..
         """
         if dbName is not None: 
             return dbName
@@ -690,7 +671,7 @@ class Db(object):
 
     def _closeConnection(self):
         """
-        Close connection to the server.
+        Close connection.
         """
         self._logger.info("closing connection")
         if self._conn is None: return
