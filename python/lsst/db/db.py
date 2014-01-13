@@ -30,6 +30,9 @@ handles database errors.
 Known issues:
  * pinging server right before every command. That seems heavy. Need to think about
    more lightweight approach.
+ * execCommandN: what if I have a huge number of rows? It'd be nice to also have 
+   a way to iterate over results without materializing them all in client memory
+   (perhaps via a generator).
 """
 
 import ConfigParser
