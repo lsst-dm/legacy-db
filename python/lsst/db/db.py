@@ -36,6 +36,7 @@ Known issues:
 """
 
 import ConfigParser
+import contextlib
 import logging
 import _mysql_exceptions
 import MySQLdb
@@ -633,35 +634,34 @@ class Db(object):
                 self.disconnect()
                 self.connect()
 
-        cursor = self._conn.cursor()
-        try:
-            self._logger.debug("Executing '%s'." % command)
-            cursor.execute(command)
-        except (MySQLdb.Error, MySQLdb.OperationalError) as e:
-            msg = "Database Error [%d]: %s." % (e.args[0],e.args[1])
-            self._logger.error("Command '%s' failed: %s" % (command, msg))
-            if e.args[0] == self._mysqlDbExistError:
-                raise DbException(DbException.DB_EXISTS, msg)
-            elif e.args[0] == self._mysqlDbDoesNotExistError:
-                raise DbException(DbException.DB_DOES_NOT_EXIST, msg)
-            elif e.args[0] == self._mysqlTbExistError:
-                raise DbException(DbException.TB_EXISTS, msg)
-            elif e.args[0] == self._mysqlTbDoesNotExistError:
-                raise DbException(DbException.TB_DOES_NOT_EXIST, msg)
-            raise DbException(DbException.SERVER_ERROR, msg)
-        except MySQLdb.Warning as w:
-            self._logger.warning("Command '%s' produced warning: %s" % \
-                                     (command, w.message))
-            raise DbException(DbException.SERVER_WARNING, w.message)
-        if nRowsRet == 0:
-            ret = ""
-        elif nRowsRet == 1:
-            ret = cursor.fetchone()
-            self._logger.debug("Got: %s" % str(ret))
-        else:
-            ret = cursor.fetchall()
-            self._logger.debug("Got: %s" % str(ret))
-        cursor.close()
+        with contextlib.closing(self._conn.cursor()) as cursor:
+            try:
+                self._logger.debug("Executing '%s'." % command)
+                cursor.execute(command)
+            except (MySQLdb.Error, MySQLdb.OperationalError) as e:
+                msg = "Database Error [%d]: %s." % (e.args[0],e.args[1])
+                self._logger.error("Command '%s' failed: %s" % (command, msg))
+                if e.args[0] == self._mysqlDbExistError:
+                    raise DbException(DbException.DB_EXISTS, msg)
+                elif e.args[0] == self._mysqlDbDoesNotExistError:
+                    raise DbException(DbException.DB_DOES_NOT_EXIST, msg)
+                elif e.args[0] == self._mysqlTbExistError:
+                    raise DbException(DbException.TB_EXISTS, msg)
+                elif e.args[0] == self._mysqlTbDoesNotExistError:
+                    raise DbException(DbException.TB_DOES_NOT_EXIST, msg)
+                raise DbException(DbException.SERVER_ERROR, msg)
+            except MySQLdb.Warning as w:
+                self._logger.warning("Command '%s' produced warning: %s" % \
+                                         (command, w.message))
+                raise DbException(DbException.SERVER_WARNING, w.message)
+            if nRowsRet == 0:
+                ret = ""
+            elif nRowsRet == 1:
+                ret = cursor.fetchone()
+                self._logger.debug("Got: %s" % str(ret))
+            else:
+                ret = cursor.fetchall()
+                self._logger.debug("Got: %s" % str(ret))
         return ret
 
     def getCurrentDbName(self):
