@@ -225,9 +225,17 @@ class Db(object):
                                "got: %d" % self._kwargs["port"])
             raise DbException(DbException.MISSING_CON_INFO, 
                               "invalid port number, must be within 1-65535")
+
         # MySQL connection-related error numbers. 
         # These are typically recoverable by reconnecting.
         self._mysqlConnErrors = [2002, 2003, 2006, 2013] 
+
+        # MySQL specific errors this wrapper is sensitive to
+        self._mysqlDbExistError = 1007
+        self._mysqlDbDoesNotExistError = 1008
+        self._mysqlTbExistError = 1050
+        self._mysqlTbDoesNotExistError = 1051
+
         # treat MySQL warnings as errors (catch them and throw DbException
         # with a special error code)
         warnings.filterwarnings('error', category=MySQLdb.Warning)
@@ -348,22 +356,29 @@ class Db(object):
         """
         return self._conn != None and self._conn.open
 
-    def createDb(self, dbName):
+    def createDb(self, dbName, mayExist=False):
         """
         Create database <dbName>.
 
-        @param dbName     Database name.
+        @param dbName      Database name.
+        @param mayExist    Flag indicating what to do if the database exists.
 
         Create a new database <dbName>. Raise exception if the database already
-        exists. Connect to the server first if connection not open already. Note,
-        it will not connect to that database and it will not make it default.
+        exists and mayExist is False. Connect to the server first if connection not
+        open already. Note,  it will not connect to that database and it will not
+        make it default.
         """
         if dbName is None: 
             raise DbException(DbException.INVALID_DB_NAME, "<None>")
         self.connect()
-        if self.checkDbExists(dbName):
-            raise DbException(DbException.DB_EXISTS, dbName)
-        self.execCommand0("CREATE DATABASE %s" % dbName)
+        try:
+            self.execCommand0("CREATE DATABASE %s" % dbName)
+        except DbException as e:
+            if e.errCode == DbException.DB_EXISTS and mayExist:
+                self._logger.debug("create db failed, mayExist is True")
+                pass
+            else:
+                raise
 
     def checkDbExists(self, dbName):
         """
@@ -384,21 +399,30 @@ class Db(object):
         cmd += "WHERE schema_name = '%s'" % dbName
         return 1 == self.execCommand1(cmd)
 
-    def dropDb(self, dbName):
+    def dropDb(self, dbName, mustExist=True):
         """
         Drop database <dbName>.
 
         @param dbName     Database name.
+        @param mustExist  Flag indicating what to do if the database does not exist.
 
-        Drop a database <dbName>. Raise exception if the database does not exists.
-        Connect to the server first if connection not open already. Disconnect from
-        the database if it is the current database.
+        Drop a database <dbName>. Raise exception if the database does not exists
+        and the flag mustExist is not set to False. Connect to the server first if
+        connection not open already. Disconnect from the database if it is the
+        current database.
         """
         self.connect()
-        if not self.checkDbExists(dbName):
-            raise DbException(DbException.DB_DOES_NOT_EXIST, dbName)
+        #if not self.checkDbExists(dbName):
+        #    raise DbException(DbException.DB_DOES_NOT_EXIST, dbName)
         cDb = self.getCurrentDbName()
-        self.execCommand0("DROP DATABASE %s" % dbName)
+        try:
+            self.execCommand0("DROP DATABASE %s" % dbName)
+        except DbException as e:
+            if e.errCode == DbException.DB_DOES_NOT_EXIST and not mustExist:
+                self._logger.debug("dropDb failed, mustExist is False")
+                pass
+            else:
+                raise
         if cDb == dbName:
             self.disconnect()
 
@@ -424,38 +448,53 @@ class Db(object):
                (dbName, tableName)
         return 1 == self.execCommand1(cmd)
 
-    def createTable(self, tableName, tableSchema, dbName=None):
+    def createTable(self, tableName, tableSchema, dbName=None, mayExist=False):
         """
         Create table <tableName> in database <dbName>.
 
         @param tableName   Table name.
         @param tableSchema Table schema starting with opening bracket.
         @param dbName      Database name.
+        @param mayExist    Flag indicating what to do if the database exists.
 
         Create a table <tableName> in database <dbName>. If database <dbName> is not
         set, the current database name will be used. Connect to the server first if
-        connection not open already. Raises exception if the table already exists.
+        connection not open already. Raises exception if the table already exists
+        and mayExist flag is not say to True.
         """
         dbName = self._getCurrentDbNameIfNeeded(dbName)
-        if self.checkTableExists(tableName, dbName):
-            raise DbException(DbException.TB_EXISTS)
-        self.execCommand0("CREATE TABLE %s.%s %s" % (dbName,tableName,tableSchema))
+        try:
+            self.execCommand0("CREATE TABLE %s.%s %s" % \
+                                  (dbName, tableName, tableSchema))
+        except  DbException as e:
+            if e.errCode == DbException.TB_EXISTS and mayExist:
+                self._logger.debug("create table failed, mayExist is True")
+                pass
+            else:
+                raise
 
-    def dropTable(self, tableName, dbName=None):
+    def dropTable(self, tableName, dbName=None, mustExist=True):
         """
         Drop table <tableName> in database <dbName>. 
 
         @param tableName  Table name.
         @param dbName     Database name.
+        @param mustExist  Flag indicating what to do if the database does not exist.
 
         Drop table <tableName> in database <dbName>. If <dbName> is not set, the
         current database name will be used. Connect to the server first if
-        connection not open already. Raises exception if the table does not exist.
+        connection not open already. Raises exception if the table does not exist
+        and the mustExist flag is not set to False.
         """
         dbName = self._getCurrentDbNameIfNeeded(dbName)
-        if not self.checkTableExists(tableName, dbName):
-            raise DbException(DbException.TB_DOES_NOT_EXIST)
-        self.execCommand0("DROP TABLE %s.%s %s" % (dbName, tableName, tableSchema))
+        try:
+            self.execCommand0("DROP TABLE %s.%s" % (dbName, tableName))
+        except DbException as e:
+            if e.errCode == DbException.TB_DOES_NOT_EXIST and not mustExist:
+                self._logger.debug("dropTable failed, mustExist is False")
+                pass
+            else:
+                raise
 
     def isView(self, tableName, dbName=None):
         """
@@ -594,6 +633,14 @@ class Db(object):
         except (MySQLdb.Error, MySQLdb.OperationalError) as e:
             msg = "Database Error [%d]: %s." % (e.args[0],e.args[1])
             self._logger.error("Command '%s' failed: %s" % (command, msg))
+            if e.args[0] == self._mysqlDbExistError:
+                raise DbException(DbException.DB_EXISTS, msg)
+            elif e.args[0] == self._mysqlDbDoesNotExistError:
+                raise DbException(DbException.DB_DOES_NOT_EXIST, msg)
+            elif e.args[0] == self._mysqlTbExistError:
+                raise DbException(DbException.TB_EXISTS, msg)
+            elif e.args[0] == self._mysqlTbDoesNotExistError:
+                raise DbException(DbException.TB_DOES_NOT_EXIST, msg)
             raise DbException(DbException.SERVER_ERROR, msg)
         except MySQLdb.Warning as w:
             self._logger.warning("Command '%s' produced warning: %s" % \

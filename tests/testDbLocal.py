@@ -240,12 +240,19 @@ class TestDbLocal(unittest.TestCase):
         """
         db = Db(self._user, self._pass, self._host, self._port, self._sock)
         db.createDb(self._dbA)
+        db.createDb(self._dbA, mayExist=True)
         self.assertRaises(DbException, db.createDb, self._dbA)
         db.useDb(self._dbA)
         self.assertRaises(DbException, db.createDb, self._dbA)
         db.createTable("t1", "(i int)")
         self.assertRaises(DbException, db.createTable, "t1", "(i int)")
         db.dropDb(self._dbA)
+
+    def testDropDb(self):
+        db = Db(self._user, self._pass, self._host, self._port, self._sock)
+        db.createDb(self._dbA)
+        db.dropDb(self._dbA)
+        db.dropDb(self._dbA, mustExist=False)
         self.assertRaises(DbException, db.dropDb, self._dbA)
         db.disconnect()
 
@@ -266,13 +273,48 @@ class TestDbLocal(unittest.TestCase):
         self.assertRaises(DbException, db.createTable, "t2", "(i int)", self._dbA)
 
         db.createTable("t1", "(i int)", self._dbB)
+        db.createTable("t1", "(i int)", self._dbB, mayExist=True)
         self.assertRaises(DbException, db.createTable, "t1", "(i int)", self._dbB)
-
         db.dropDb(self._dbA)
-        self.assertRaises(DbException, db.dropDb, self._dbA)
-        self.assertRaises(DbException, db.createTable, "t1", "(i int)", self._dbB)
+        db.disconnect()
 
+    def testDropTable(self):
+        db = Db(self._user, self._pass, self._host, self._port, self._sock)
+
+        # using current db
+        db.createDb(self._dbA)
+        db.useDb(self._dbA)
+        db.createTable("t2", "(i int)")
+        db.dropTable("t2")
+        db.dropTable("t2", mustExist=False)
+        self.assertRaises(DbException, db.dropTable, "t2")
+        db.dropDb(self._dbA)
+
+        # using no current db
+        db.createDb(self._dbB)
+        db.createTable("t2", "(i int)", self._dbB)
+        db.dropTable("t2", dbName=self._dbB)
+        db.dropTable("t2", dbName=self._dbB, mustExist=False)
+        self.assertRaises(DbException, db.dropTable, "t2", self._dbB)
         db.dropDb(self._dbB)
+
+        # mix of current and not current db
+        db.createDb(self._dbA)
+        db.createDb(self._dbB)
+        db.useDb(self._dbA)
+        db.createTable("t2", "(i int)", self._dbB)
+        db.createTable("t2", "(i int)")
+
+        db.dropTable("t2")
+        db.dropTable("t2", dbName=self._dbB)
+        db.dropTable("t2", mustExist=False)
+        db.dropTable("t2", dbName=self._dbB, mustExist=False)
+
+        self.assertRaises(DbException, db.dropTable, "t2")
+        self.assertRaises(DbException, db.dropTable, "t2", self._dbB)
+        db.dropDb(self._dbA)
+        db.dropDb(self._dbB)
+
         db.disconnect()
 
     def testCheckExists(self):
