@@ -35,17 +35,20 @@ Known issues:
    (perhaps via a generator).
 """
 
+# standard library
 import ConfigParser
 import contextlib
 import logging
-import _mysql_exceptions
-import MySQLdb
 import os.path
 import StringIO
 import subprocess
 import warnings
 from datetime import datetime
 from time import sleep
+
+# related third-package library
+import _mysql_exceptions
+import MySQLdb
 
 
 ####################################################################################
