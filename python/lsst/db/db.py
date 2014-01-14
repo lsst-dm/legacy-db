@@ -142,10 +142,6 @@ class Db(object):
         1050: DbException.TB_EXISTS,
         1051: DbException.TB_DOES_NOT_EXIST
     }
-    _mysqlDbExistError = 1007
-    _mysqlDbDoesNotExistError = 1008
-    _mysqlTbExistError = 1050
-    _mysqlTbDoesNotExistError = 1051
 
     def __init__(self, user=None, passwd=None, host=None, port=None, socket=None,
                  optionFile=None, local_infile=0, sleepLen=3, maxRetryCount=0,
