@@ -255,7 +255,7 @@ class Db(object):
 
     def connect(self, dbName=None):
         """
-        Connect to Database Server. If dbName is provided. it connects to the
+        Connect to Database Server. If dbName is provided, it connects to the
         database.
         """
         if self.checkIsConnected():
