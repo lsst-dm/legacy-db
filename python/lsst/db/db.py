@@ -477,16 +477,12 @@ class Db(object):
 
         @return boolean   True if the table is a view. False otherwise.
 
-        If <dbName> is not set, the current database name will be used. Raise
-        exception if the table does not exist.
+        If <dbName> is not set, the current database name will be used.
         """
         dbName = self._getCurrentDbNameIfNeeded(dbName)
-        if not self.checkTableExists(tableName, dbName):
-            raise DbException(DbException.TB_DOES_NOT_EXIST)
-        ret = self.execCommand1("SELECT COUNT(*) FROM information_schema.tables "
-                                "WHERE table_schema='%s' AND table_name='%s' AND "
-                                "table_type='VIEW'" % (dbName, tableName))
-        return ret[0]
+        rows = self.execCommandN("SELECT table_type FROM information_schema.tables "
+                "WHERE table_schema='%s' AND table_name='%s'" % (dbName, tableName))
+        return len(rows) == 1 and rows[0][0] == 'VIEW'
 
     def getTableContent(self, tableName, dbName=None):
         """

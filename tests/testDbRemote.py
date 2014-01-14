@@ -147,7 +147,6 @@ class TestDbRemote(unittest.TestCase):
         self.assertNotEqual(db.getCurrentDbName(), self._dbB)
         # delete that database
         db.dropDb(self._dbA)
-        self.assertFalse(db.checkIsConnected())
 
     def testCheckExists(self):
         """

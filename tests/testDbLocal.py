@@ -118,6 +118,12 @@ class TestDbLocal(unittest.TestCase):
         db.useDb(self._dbA)
         db.createTable("t1", "(i int)")
         self.assertRaises(DbException, db.useDb, "invDbName")
+        db.dropDb(self._dbA)
+        self.assertRaises(DbException, db.createTable, "t1", "(i int)")
+        db.createDb(self._dbB)
+        db.useDb(self._dbB)
+        db.createTable("t1", "(i int)")
+        db.dropDb(self._dbB)
 
     def testConn_invalidHost(self):
         db = Db(self._user, self._pass, "invalidHost", self._port)
@@ -218,7 +224,6 @@ class TestDbLocal(unittest.TestCase):
         self.assertNotEqual(db.getCurrentDbName(), self._dbB)
         # delete that database
         db.dropDb(self._dbA)
-        self.assertFalse(db.checkIsConnected())
 
     def testMultiDbs(self):
         """
@@ -365,7 +370,6 @@ class TestDbLocal(unittest.TestCase):
         db.execCommand0("CREATE VIEW t2 AS SELECT i FROM t1")
         self.assertFalse(db.isView("t1"))
         self.assertTrue(db.isView("t2"))
-        self.assertRaises(DbException, db.isView, "dummy")
         db.dropDb(self._dbA)
 
     def testServerRestart(self):
