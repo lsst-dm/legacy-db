@@ -134,7 +134,14 @@ class Db(object):
     # These are typically recoverable by reconnecting.
     _mysqlConnErrors = [2002, 2003, 2006, 2013] 
 
-    # MySQL specific errors this wrapper is sensitive to
+    # Mapping of MySQL-specific errors this wrapper is sensitive to into 
+    # DbException errors
+    _mysqlErrorMap = {
+        1007: DbException.DB_EXISTS,
+        1008: DbException.DB_DOES_NOT_EXIST,
+        1050: DbException.TB_EXISTS,
+        1051: DbException.TB_DOES_NOT_EXIST
+    }
     _mysqlDbExistError = 1007
     _mysqlDbDoesNotExistError = 1008
     _mysqlTbExistError = 1050
@@ -598,15 +605,9 @@ class Db(object):
             except (MySQLdb.Error, MySQLdb.OperationalError) as e:
                 msg = "Database Error [%d]: %s." % (e.args[0],e.args[1])
                 self._logger.error("Command '%s' failed: %s" % (command, msg))
-                if e.args[0] == self._mysqlDbExistError:
-                    raise DbException(DbException.DB_EXISTS, msg)
-                elif e.args[0] == self._mysqlDbDoesNotExistError:
-                    raise DbException(DbException.DB_DOES_NOT_EXIST, msg)
-                elif e.args[0] == self._mysqlTbExistError:
-                    raise DbException(DbException.TB_EXISTS, msg)
-                elif e.args[0] == self._mysqlTbDoesNotExistError:
-                    raise DbException(DbException.TB_DOES_NOT_EXIST, msg)
-                raise DbException(DbException.SERVER_ERROR, msg)
+                errCode = self._mysqlErrorMap.get(e.args[0],
+                                                  DbException.SERVER_ERROR)
+                raise DbException(errCode, msg)
             except MySQLdb.Warning as w:
                 self._logger.warning("Command '%s' produced warning: %s" % \
                                          (command, w.message))
