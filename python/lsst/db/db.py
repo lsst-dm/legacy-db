@@ -162,7 +162,6 @@ class Db(object):
         self._logger.debug("db __init__")
         self._sleepLen = sleepLen
         self._attemptMaxNo = 1+maxRetryCount
-        self._attemptNo = 1
 
         self._kwargs = {
             "local_infile": local_infile
@@ -261,20 +260,18 @@ class Db(object):
         """
         if self.checkIsConnected():
             return
-        self._logger.info("Connecting, attempt %d of %d" % \
-                              (self._attemptNo, self._attemptMaxNo))
-        if self._tryConnect(dbName):
-            self._attemptNo = 1
-            return
-        else:
-            if self._attemptMaxNo == 1:
+        n = 1
+        while True:
+            self._logger.info("Connect attempt %d of %d" % (n, self._attemptMaxNo))
+            if self._tryConnect(dbName, n):
+                break
+            elif n < self._attemptMaxNo:
+                n += 1
+                sleep(self.sleepLen)
+            else:
                 raise DbException(DbException.SERVER_CONNECT)
-            self._attemptNo += 1
-            self._logger.debug("sleeping %s sec" % self.sleepLen)
-            sleep(self.sleepLen)
-            self.connect(dbName)
 
-    def _tryConnect(self, dbName):
+    def _tryConnect(self, dbName, attemptNo):
         """
         Try to connect using appropriate method (tcp or socket). Return True on
         success, False on recoverable error, and raise exception on non-recoverable
@@ -291,7 +288,7 @@ class Db(object):
             self._logger.info("Failed to establish MySQL connection " +
                    "using %s. [%d: %s]" % (self._connProt, e.args[0], e.args[1]))
             if e[0] in self._mysqlConnErrors and \
-                 (self._attemptNo < self._attemptMaxNo or self._attemptMaxNo == 1):
+                 (attemptNo < self._attemptMaxNo or self._attemptMaxNo == 1):
                 return False
             self._logger.error("Can't recover, sorry")
             raise DbException(DbException.SERVER_CONNECT, "%d: %s" % e.args[:2])
