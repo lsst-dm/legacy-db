@@ -365,7 +365,7 @@ class Db(object):
         if dbName is None: 
             raise DbException(DbException.INVALID_DB_NAME, "<None>")
         try:
-            self.execCommand0("CREATE DATABASE %s" % dbName)
+            self.execCommand0("CREATE DATABASE `%s`" % dbName)
         except DbException as e:
             if e.errCode == DbException.DB_EXISTS and mayExist:
                 self._logger.debug("create db failed, mayExist is True")
@@ -399,7 +399,7 @@ class Db(object):
         """
         cDb = self.getCurrentDbName()
         try:
-            self.execCommand0("DROP DATABASE %s" % dbName)
+            self.execCommand0("DROP DATABASE `%s`" % dbName)
         except DbException as e:
             if e.errCode == DbException.DB_DOES_NOT_EXIST and not mustExist:
                 self._logger.debug("dropDb failed, mustExist is False")
@@ -443,7 +443,7 @@ class Db(object):
         """
         dbName = self._getCurrentDbNameIfNeeded(dbName)
         try:
-            self.execCommand0("CREATE TABLE %s.%s %s" % \
+            self.execCommand0("CREATE TABLE `%s`.`%s` %s" % \
                                   (dbName, tableName, tableSchema))
         except  DbException as e:
             if e.errCode == DbException.TB_EXISTS and mayExist:
@@ -466,7 +466,7 @@ class Db(object):
         """
         dbName = self._getCurrentDbNameIfNeeded(dbName)
         try:
-            self.execCommand0("DROP TABLE %s.%s" % (dbName, tableName))
+            self.execCommand0("DROP TABLE `%s`.`%s`" % (dbName, tableName))
         except DbException as e:
             if e.errCode == DbException.TB_DOES_NOT_EXIST and not mustExist:
                 self._logger.debug("dropTable failed, mustExist is False")
@@ -491,7 +491,7 @@ class Db(object):
             raise DbException(DbException.TB_DOES_NOT_EXIST)
         ret = self.execCommand1("SELECT COUNT(*) FROM information_schema.tables "
                                 "WHERE table_schema='%s' AND table_name='%s' AND "
-                                "table_type=\'VIEW\'" % (dbName, tableName))
+                                "table_type='VIEW'" % (dbName, tableName))
         return ret[0]
 
     def getTableContent(self, tableName, dbName=None):
@@ -504,7 +504,7 @@ class Db(object):
         @return string    Contents of the table.
         """
         dbName = self._getCurrentDbNameIfNeeded(dbName)
-        ret = self.execCommandN("SELECT * FROM %s.%s" % (dbName, tableName))
+        ret = self.execCommandN("SELECT * FROM `%s`.`%s`" % (dbName, tableName))
         s = StringIO.StringIO()
         s.write(tableName)
         if len(ret) == 0:
