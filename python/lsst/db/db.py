@@ -397,17 +397,13 @@ class Db(object):
         not set to False. Disconnect from the database if it is the current
         database.
         """
-        cDb = self.getCurrentDbName()
         try:
             self.execCommand0("DROP DATABASE `%s`" % dbName)
         except DbException as e:
             if e.errCode == DbException.DB_DOES_NOT_EXIST and not mustExist:
                 self._logger.debug("dropDb failed, mustExist is False")
-                pass
             else:
                 raise
-        if cDb == dbName:
-            self.disconnect()
 
     def checkTableExists(self, tableName, dbName=None):
         """
@@ -448,7 +444,6 @@ class Db(object):
         except  DbException as e:
             if e.errCode == DbException.TB_EXISTS and mayExist:
                 self._logger.debug("create table failed, mayExist is True")
-                pass
             else:
                 raise
 
@@ -470,7 +465,6 @@ class Db(object):
         except DbException as e:
             if e.errCode == DbException.TB_DOES_NOT_EXIST and not mustExist:
                 self._logger.debug("dropTable failed, mustExist is False")
-                pass
             else:
                 raise
 
