@@ -258,7 +258,7 @@ class Db(object):
         Connect to Database Server. If dbName is provided, it connects to the
         database.
         """
-        if self.checkIsConnected():
+        if self.isConnected():
             return
         n = 1
         while True:
@@ -310,7 +310,7 @@ class Db(object):
         """
         Disconnect from the server.
         """
-        if not self.checkIsConnected(): return
+        if not self.isConnected(): return
         self._logger.info("disconnecting")
         try:
             self._closeConnection()
@@ -346,7 +346,7 @@ class Db(object):
 
         self._logger.info("Connected to db '%s'." % dbName)
 
-    def checkIsConnected(self):
+    def isConnected(self):
         """
         Return True if connection is established, False otherwise.
         """
@@ -373,7 +373,7 @@ class Db(object):
             else:
                 raise
 
-    def checkDbExists(self, dbName):
+    def dbExists(self, dbName):
         """
         Return True if database <dbName> exists, False otherwise.
 
@@ -405,7 +405,7 @@ class Db(object):
             else:
                 raise
 
-    def checkTableExists(self, tableName, dbName=None):
+    def tableExists(self, tableName, dbName=None):
         """
         Return True if table <tableName> exists in database <dbName>.
 
@@ -505,7 +505,7 @@ class Db(object):
             print >> s, "   ", r
         return s.getvalue()
 
-    def checkUserExists(self, userName, hostName):
+    def userExists(self, userName, hostName):
         """
         Return True if user <hostName>@<userName> exists, False otherwise.
         """

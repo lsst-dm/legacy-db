@@ -54,9 +54,9 @@ class TestDbRemote(unittest.TestCase):
         self._dbC = "%s_dbWrapperTestDb_C" % self._user
 
         db = Db(self._user, self._pass, self._host, self._port)
-        if db.checkDbExists(self._dbA): db.dropDb(self._dbA)
-        if db.checkDbExists(self._dbB): db.dropDb(self._dbB)
-        if db.checkDbExists(self._dbC): db.dropDb(self._dbC)
+        if db.dbExists(self._dbA): db.dropDb(self._dbA)
+        if db.dbExists(self._dbB): db.dropDb(self._dbB)
+        if db.dbExists(self._dbC): db.dropDb(self._dbC)
         db.disconnect()
 
     def _initCredentials(self):
@@ -128,21 +128,21 @@ class TestDbRemote(unittest.TestCase):
         db = Db(self._user, self._pass, self._host, self._port)
         db.disconnect()
         # not connected at all
-        self.assertFalse(db.checkIsConnected())
+        self.assertFalse(db.isConnected())
         # just initialize state, still not connected at all
         db = Db(self._user, self._pass, self._host, self._port)
-        self.assertFalse(db.checkIsConnected())
+        self.assertFalse(db.isConnected())
         # connect to server, not to db
         db.connect()
-        self.assertTrue(db.checkIsConnected())
+        self.assertTrue(db.isConnected())
         # create db, still don't connect to it
         db.createDb(self._dbA)
-        self.assertTrue(db.checkIsConnected())
+        self.assertTrue(db.isConnected())
         self.assertNotEqual(db.getCurrentDbName(), self._dbA)
         self.assertNotEqual(db.getCurrentDbName(), self._dbB)
         # finally connect to it
         db.useDb(self._dbA)
-        self.assertTrue(db.checkIsConnected())
+        self.assertTrue(db.isConnected())
         self.assertEqual(db.getCurrentDbName(), self._dbA)
         self.assertNotEqual(db.getCurrentDbName(), self._dbB)
         # delete that database
@@ -153,24 +153,24 @@ class TestDbRemote(unittest.TestCase):
         Test checkExist for databases and tables.
         """
         db = Db(self._user, self._pass, self._host, self._port)
-        self.assertFalse(db.checkDbExists("bla"))
-        self.assertFalse(db.checkTableExists("bla"))
-        self.assertFalse(db.checkTableExists("bla", "blaBla"))
+        self.assertFalse(db.dbExists("bla"))
+        self.assertFalse(db.tableExists("bla"))
+        self.assertFalse(db.tableExists("bla", "blaBla"))
 
         db.createDb(self._dbA)
-        self.assertTrue(db.checkDbExists(self._dbA))
-        self.assertFalse(db.checkDbExists("bla"))
-        self.assertFalse(db.checkTableExists("bla"))
-        self.assertFalse(db.checkTableExists("bla", "blaBla"))
+        self.assertTrue(db.dbExists(self._dbA))
+        self.assertFalse(db.dbExists("bla"))
+        self.assertFalse(db.tableExists("bla"))
+        self.assertFalse(db.tableExists("bla", "blaBla"))
 
         db.createTable("t1", "(i int)", self._dbA)
-        self.assertTrue(db.checkDbExists(self._dbA))
-        self.assertFalse(db.checkDbExists("bla"))
-        self.assertTrue(db.checkTableExists("t1", self._dbA))
+        self.assertTrue(db.dbExists(self._dbA))
+        self.assertFalse(db.dbExists("bla"))
+        self.assertTrue(db.tableExists("t1", self._dbA))
         db.useDb(self._dbA)
-        self.assertTrue(db.checkTableExists("t1"))
-        self.assertFalse(db.checkTableExists("bla"))
-        self.assertFalse(db.checkTableExists("bla", "blaBla"))
+        self.assertTrue(db.tableExists("t1"))
+        self.assertFalse(db.tableExists("bla"))
+        self.assertFalse(db.tableExists("bla", "blaBla"))
         db.dropDb(self._dbA)
 
         db.disconnect()
