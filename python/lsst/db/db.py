@@ -215,7 +215,7 @@ class Db(object):
                         self._kwargs["unix_socket"] = ret["socket"]
                         self._connProt = "socket"
             # if user/password not set through options, get them from optionFile
-            if "user" in ret:
+            if "user" not in self._kwargs and "user" in ret:
                 self._kwargs["user"] = ret["user"]
                 self._kwargs["passwd"] = ret.get("password", '')
 
