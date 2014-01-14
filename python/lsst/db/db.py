@@ -323,7 +323,6 @@ class Db(object):
             raise DbException(DbException.SERVER_WARNING, w.message)
 
         self._logger.debug("Connection to database server closed.")
-        self._conn = None
 
     def useDb(self, dbName):
         """
@@ -335,12 +334,8 @@ class Db(object):
         if cDb is not None and cDb == dbName:
             return
         try:
-            if not self.checkIsConnected():
-                self._logger.info("in useDb, connecting to server")
-                self.connect(dbName)
-            else:
-                self._logger.info("in useDb, connecting to db")
-                self._conn.select_db(dbName)
+            self._logger.info("in useDb, connecting to db")
+            self._conn.select_db(dbName)
         except MySQLdb.Error, e:
             self._logger.error("Failed to use db '%s'." % dbName)
             raise DbException(DbException.CANT_CONNECT_TO_DB, dbName)
@@ -369,7 +364,6 @@ class Db(object):
         """
         if dbName is None: 
             raise DbException(DbException.INVALID_DB_NAME, "<None>")
-        self.connect()
         try:
             self.execCommand0("CREATE DATABASE %s" % dbName)
         except DbException as e:
@@ -387,7 +381,6 @@ class Db(object):
         """
         if dbName is None:
             return False
-        self.connect()
         cmd = "SELECT COUNT(*) FROM information_schema.schemata "
         cmd += "WHERE schema_name = '%s'" % dbName
         count = self.execCommand1(cmd)
@@ -404,7 +397,6 @@ class Db(object):
         not set to False. Disconnect from the database if it is the current
         database.
         """
-        self.connect()
         cDb = self.getCurrentDbName()
         try:
             self.execCommand0("DROP DATABASE %s" % dbName)
@@ -643,9 +635,7 @@ class Db(object):
         """
         Return the name of current database.
         """
-        self.connect()
-        cmd = "SELECT DATABASE()"
-        return self.execCommand1(cmd)[0]
+        return self.execCommand1("SELECT DATABASE()")[0]
 
     def _getCurrentDbNameIfNeeded(self, dbName):
         """
