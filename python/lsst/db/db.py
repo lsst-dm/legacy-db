@@ -160,7 +160,6 @@ class Db(object):
         self._conn = None
         self._logger = logging.getLogger("DBWRAP")
         self._logger.debug("db __init__")
-        self._isConnectedToDb = False
         self._sleepLen = sleepLen
         self._attemptMaxNo = 1+maxRetryCount
         self._attemptNo = 1
@@ -328,7 +327,6 @@ class Db(object):
 
         self._logger.debug("Connection to database server closed.")
         self._conn = None
-        self._isConnectedToDb = False
 
     def useDb(self, dbName):
         """
@@ -354,14 +352,13 @@ class Db(object):
                                      (dbName, w.message))
             raise DbException(DbException.SERVER_WARNING, w.message)
 
-        self._isConnectedToDb = True
         self._logger.info("Connected to db '%s'." % dbName)
 
     def checkIsConnected(self):
         """
         Return True if connection is established, False otherwise.
         """
-        return self._conn != None and self._conn.open
+        return self._conn is not None and self._conn.open
 
     def createDb(self, dbName, mayExist=False):
         """
