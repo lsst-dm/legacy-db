@@ -130,6 +130,16 @@ class Db(object):
     establish it first.
     """
 
+    # MySQL connection-related error numbers. 
+    # These are typically recoverable by reconnecting.
+    _mysqlConnErrors = [2002, 2003, 2006, 2013] 
+
+    # MySQL specific errors this wrapper is sensitive to
+    _mysqlDbExistError = 1007
+    _mysqlDbDoesNotExistError = 1008
+    _mysqlTbExistError = 1050
+    _mysqlTbDoesNotExistError = 1051
+
     def __init__(self, user=None, passwd=None, host=None, port=None, socket=None,
                  optionFile=None, local_infile=0, sleepLen=3, maxRetryCount=0,
                  preferTcp=False):
@@ -229,16 +239,6 @@ class Db(object):
                                "got: %d" % self._kwargs["port"])
             raise DbException(DbException.MISSING_CON_INFO, 
                               "invalid port number, must be within 1-65535")
-
-        # MySQL connection-related error numbers. 
-        # These are typically recoverable by reconnecting.
-        self._mysqlConnErrors = [2002, 2003, 2006, 2013] 
-
-        # MySQL specific errors this wrapper is sensitive to
-        self._mysqlDbExistError = 1007
-        self._mysqlDbDoesNotExistError = 1008
-        self._mysqlTbExistError = 1050
-        self._mysqlTbDoesNotExistError = 1051
 
         # treat MySQL warnings as errors (catch them and throw DbException
         # with a special error code)
