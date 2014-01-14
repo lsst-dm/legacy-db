@@ -143,7 +143,7 @@ class Db(object):
         1051: DbException.TB_DOES_NOT_EXIST
     }
 
-    def __init__(self, user=None, passwd=None, host=None, port=None, socket=None,
+    def __init__(self, user=None, passwd='', host=None, port=None, socket=None,
                  optionFile=None, local_infile=0, sleepLen=3, maxRetryCount=0,
                  preferTcp=False):
         """
@@ -214,8 +214,12 @@ class Db(object):
             # if user/password not set through options, get them from optionFile
             if "user" in ret:
                 self._kwargs["user"] = ret["user"]
-                if "password" in ret:
-                    self._kwargs["passwd"] = ret["password"]
+                self._kwargs["passwd"] = ret.get("password", '')
+
+        # MySQL defaults to socket if it sees "localhost". 127.0.0.1 will force TCP.
+        if "host" in self._kwargs and self._kwargs["host"] == "localhost":
+            self._kwargs["host"] = "127.0.0.1"
+            self._logger.warning('"localhost" specified, switching to 127.0.0.1')
 
         # final validation
         if self._connProt is None:
@@ -227,14 +231,6 @@ class Db(object):
            "user" is self._kwargs and self._kwargs["user"] is None:
             self._logger.error("Missing user credentials: user is None.")
             raise DbException(DbException.MISSING_CON_INFO, "invalid username")
-
-        # final cleanup of host/port/password
-        if "password" in self._kwargs and self._kwargs["passwd"] is None:
-            self._kwargs["passwd"] = ''
-        # MySQL defaults to socket if it sees "localhost". 127.0.0.1 will force TCP.
-        if "host" in self._kwargs and self._kwargs["host"] == "localhost":
-            self._kwargs["host"] = "127.0.0.1"
-            self._logger.warning('"localhost" specified, switching to 127.0.0.1')
         if "port" in self._kwargs and \
                 (self._kwargs["port"]<1 or self._kwargs["port"]>65535):
             self._logger.error("Missing connection info: socket=None, " +
