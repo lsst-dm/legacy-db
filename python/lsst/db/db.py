@@ -524,20 +524,20 @@ class Db(object):
         dbInfo = " into db '%s'." % dbName if dbName is not None else ""
         self._logger.info("Loading script %s%s" %(scriptPath,dbInfo))
 
-        cmd = 'mysql --user %s' % self._kwargs["user"]
+        args = ['mysql', '--user', self._kwargs["user"]]
         if self._connProt == "tcp":
-            cmd += ' --host %s --port %s' % \
-                (self._kwargs["host"], self._kwargs["port"])
+            args += ['--host', self._kwargs["host"]]
+            args += ['--port', str(self._kwargs["port"])]
         elif self._connProt == "socket":
-            cmd += ' --socket %s' % self._kwargs["unix_socket"]
+            args += ['--socket', self._kwargs["unix_socket"]]
         if self._kwargs["passwd"] != "":
-            cmd += ' --password=%s' % self._kwargs["passwd"]
+            args += ['--password=%s' % self._kwargs["passwd"]]
         if dbName is not None:
-            cmd += ' %s' % dbName
-        self._logger.debug("cmd is %s" % cmd)
+            args += [dbName]
+        self._logger.debug("args are %s" % args)
         with file(scriptPath) as scriptFile:
-            if subprocess.call(cmd.split(), stdin=scriptFile) != 0:
-                msg = "Failed to execute %s < %s" % (cmd,scriptPath)
+            if subprocess.call(args, stdin=scriptFile) != 0:
+                msg = "Failed to execute %s < %s" % (str(args), scriptPath)
                 raise DbException(DbException.CANT_EXEC_SCRIPT, msg)
 
     def execCommand0(self, command):
