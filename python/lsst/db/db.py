@@ -270,7 +270,7 @@ class Db(object):
                 break
             elif n < self._attemptMaxNo:
                 n += 1
-                sleep(self.sleepLen)
+                sleep(self._sleepLen)
             else:
                 raise DbException(DbException.SERVER_CONNECT)
 
@@ -545,7 +545,7 @@ class Db(object):
 
     def execCommand0(self, command):
         """
-        Execute SQL command that returns no rows.
+        Execute SQL command and discard any result.
 
         @param command    SQL command that returns no rows.
         """
@@ -553,7 +553,8 @@ class Db(object):
 
     def execCommand1(self, command):
         """
-        Execute SQL command that returns one row.
+        Execute SQL command that returns a single row (a sequence of column values),
+        or None if the statemetn returned no results.
 
         @param command    SQL command that returns one row.
 
@@ -563,9 +564,10 @@ class Db(object):
 
     def execCommandN(self, command):
         """
-        Execute SQL command that returns more than one row.
+        Execute SQL command that returns a sequence of all statement result rows,
+        which are themselves sequences of column values.
 
-        @param command    SQL command that returns more than one row.
+        @param command    SQL command. that returns more than one row.
 
         @return string    Result.
         """
@@ -609,7 +611,7 @@ class Db(object):
                                          (command, w.message))
                 raise DbException(DbException.SERVER_WARNING, w.message)
             if nRowsRet == 0:
-                ret = ""
+                ret = None
             elif nRowsRet == 1:
                 ret = cursor.fetchone()
                 self._logger.debug("Got: %s" % str(ret))
@@ -626,12 +628,8 @@ class Db(object):
 
     def _getCurrentDbNameIfNeeded(self, dbName):
         """
-        Return dbName if it is not None, otherwise currentDb if it is not not,
+        Return dbName if it is not None, otherwise currentDb if it is not None,
         otherwise raise an exception.
-
-        @param dbName     Database name.
-        @return string    Return <dbName> if it is valid, otherwise if the
-                          current database name if valid return it..
         """
         if dbName is not None: 
             return dbName
@@ -651,8 +649,9 @@ class Db(object):
 
     def _parseOptionFile(self):
         """
-        Returns a dictionary containing values for socket, host, port, user and
-        password specified through optionFile (None for each value not given.)
+        Return a dictionary containing values for socket, host, port, user and
+        password extracted from the optionFile, no entry for values absent in the
+        optionFile.
         """
         # it is better to parse the option file and explicitly check if socket,
         # host, port, username etc are valid, otherwise MySQL will try to default
@@ -677,7 +676,3 @@ class Db(object):
         self._logger.info("connection info from option file '%s': %s" % \
                               (oF, str(ret)))
         return ret
-
-    @property
-    def sleepLen(self):
-        return self._sleepLen
