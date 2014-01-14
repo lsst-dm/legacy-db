@@ -1,9 +1,10 @@
 # -*- python -*-
 import glob
 import subprocess
-Import('env')
+Import('env', 'pFiles')
 
 for f in env.Glob("*.py"):
+    Depends(f, pFiles)
     print "Running test: ", f
     app = str(f.abspath)
     if subprocess.call(app):

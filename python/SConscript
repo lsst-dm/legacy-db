@@ -10,6 +10,8 @@ env.Command("../dist/lsst/__init__.py",    None, [Touch("$TARGET")])
 env.Command("../dist/lsst/db/__init__.py", None, [Touch("$TARGET")])
 
 # include all .py files into the dist directory
+pFiles = []
 for f in env.Glob("lsst/db/*.py"):
     print "installing", f, "into", distDir
-    env.Install(distDir, f)
+    pFiles.append(env.Install(distDir, f))
+Return('pFiles')
