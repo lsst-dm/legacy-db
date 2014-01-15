@@ -133,17 +133,18 @@ class Db(object):
     establish it first.
     """
 
-    # MySQL connection-related error numbers. 
-    # These are typically recoverable by reconnecting.
-    _mysqlConnErrors = [2002, 2003, 2006, 2013] 
-
-    # Mapping of MySQL-specific errors this wrapper is sensitive to into 
-    # DbException errors
+    # Mapping of MySQL-specific errors this wrapper is sensitive to into DbException
+    # errors. The errors that map to SERVER_CONNECT are typically recoverable by
+    # reconnecting.
     _mysqlErrorMap = {
         1007: DbException.DB_EXISTS,
         1008: DbException.DB_DOES_NOT_EXIST,
         1050: DbException.TB_EXISTS,
-        1051: DbException.TB_DOES_NOT_EXIST
+        1051: DbException.TB_DOES_NOT_EXIST,
+        2002: DbException.SERVER_CONNECT,
+        2003: DbException.SERVER_CONNECT,
+        2006: DbException.SERVER_CONNECT,
+        2013: DbException.SERVER_CONNECT
     }
 
     def __init__(self, user=None, passwd='', host=None, port=None, socket=None,
@@ -289,7 +290,7 @@ class Db(object):
         except MySQLdb.Error as e:
             self._logger.info("Failed to establish MySQL connection " +
                    "using %s. [%d: %s]" % (self._connProt, e.args[0], e.args[1]))
-            if e[0] in self._mysqlConnErrors and \
+            if self._isConnectionError(e[0]) and \
                  (attemptNo < self._attemptMaxNo or self._attemptMaxNo == 1):
                 return False
             self._logger.error("Can't recover, sorry")
@@ -589,7 +590,7 @@ class Db(object):
             self._logger.info("pinging server")
             self._conn.ping()
         except MySQLdb.OperationalError as e:
-            if e.args[0] in self._mysqlConnErrors:
+            if self._isConnectionError(e.args[0]):
                 self._logger.info(
                     "reconnecting because of [%d: %s]" % (e.args[0], e.args[1]))
                 self.disconnect()
@@ -602,9 +603,7 @@ class Db(object):
             except (MySQLdb.Error, MySQLdb.OperationalError) as e:
                 msg = "Database Error [%d]: %s." % (e.args[0],e.args[1])
                 self._logger.error("Command '%s' failed: %s" % (command, msg))
-                errCode = self._mysqlErrorMap.get(e.args[0],
-                                                  DbException.SERVER_ERROR)
-                raise DbException(errCode, msg)
+                raise DbException(self._getErrCode(e.args[0]), msg)
             except MySQLdb.Warning as w:
                 self._logger.warning("Command '%s' produced warning: %s" % \
                                          (command, w.message))
@@ -675,3 +674,10 @@ class Db(object):
         self._logger.info("connection info from option file '%s': %s" % \
                               (oF, str(ret)))
         return ret
+
+    def _getErrCode(self, mysqlErrCode):
+        return self._mysqlErrorMap.get(mysqlErrCode, DbException.SERVER_ERROR)
+
+    def _isConnectionError(self, mysqlErrCode):
+        return  self._getErrCode(mysqlErrCode) == DbException.SERVER_CONNECT
+
