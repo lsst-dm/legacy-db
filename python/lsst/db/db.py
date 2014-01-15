@@ -125,7 +125,7 @@ class Db(object):
     @brief Wrapper around MySQLdb.
 
     This class wraps MySQLdb. It adds extra functionality, like recovering from
-    lost connection, It also implements some useful functions, like creating
+    lost connection. It also implements some useful functions, like creating
     databases/tables. Connection is done either through host/port or socket (at
     least one of these must be provided). Password can be empty. If it can't
     connect, it will retry (and sleep). Public functions do not have to call 
