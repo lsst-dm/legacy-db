@@ -47,7 +47,6 @@ from datetime import datetime
 from time import sleep
 
 # related third-package library
-import _mysql_exceptions
 import MySQLdb
 
 
