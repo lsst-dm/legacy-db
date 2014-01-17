@@ -1,9 +1,3 @@
 # -*- python -*-
-
-env = Environment()
-Export('env')
-
-pFiles = SConscript('python/SConscript')
-
-Export('pFiles')
-SConscript('tests/SConscript')
+from lsst.sconsUtils import scripts
+scripts.BasicSConstruct("db")

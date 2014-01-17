@@ -1,12 +1,3 @@
 # -*- python -*-
-import glob
-import subprocess
-Import('env', 'pFiles')
-
-for f in env.Glob("*.py"):
-    Depends(f, pFiles)
-    print "Running test: ", f
-    app = str(f.abspath)
-    if subprocess.call(app):
-        print f, "FAILED"
-        Exit(2)
+from lsst.sconsUtils import scripts
+scripts.BasicSConscript.tests(pyList=["testDbLocal.py", "testDbRemote.py"])

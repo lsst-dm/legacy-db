@@ -1,6 +1,5 @@
-setupRequired(python >= 2.5)
-setupRequired(mysqlclient >= 5.0.45+1)
-setupRequired(mysqlpython >= 1.2.2)
+setupRequired(python)
+setupRequired(mysqlclient)
+setupRequired(mysqlpython)
 
-envAppend(PATH, ${PRODUCT_DIR}/bin)
 envAppend(PYTHONPATH, ${PRODUCT_DIR}/python)
