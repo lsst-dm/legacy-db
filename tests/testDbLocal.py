@@ -138,8 +138,9 @@ class TestDbLocal(unittest.TestCase):
         self.assertRaises(DbException, db.connect)
 
     def testConn_invalidPortNo(self):
-        self.assertRaises(DbException, Db, user=self._user, passwd=self._pass, 
-                          host=self._host,port=987654)
+        db = Db(user=self._user, passwd=self._pass, 
+                host=self._host,port=987654)
+        self.assertRaises(DbException, db.connect)
 
     def testConn_wrongPortNo(self):
         db = Db(user=self._user, passwd=self._pass, host=self._host, port=1579, 
