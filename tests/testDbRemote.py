@@ -53,7 +53,8 @@ class TestDbRemote(unittest.TestCase):
         self._dbB = "%s_dbWrapperTestDb_B" % self._user
         self._dbC = "%s_dbWrapperTestDb_C" % self._user
 
-        db = Db(self._user, self._pass, self._host, self._port)
+        db = Db(user=self._user, passwd=self._pass, 
+                host=self._host, port=self._port)
         if db.dbExists(self._dbA): db.dropDb(self._dbA)
         if db.dbExists(self._dbB): db.dropDb(self._dbB)
         if db.dbExists(self._dbC): db.dropDb(self._dbC)
@@ -84,7 +85,8 @@ class TestDbRemote(unittest.TestCase):
         Basic test: connect through port, create db and connect to it, create one
         table, drop the db, disconnect.
         """
-        db = Db(self._user, self._pass, self._host, self._port)
+        db = Db(user=self._user, passwd=self._pass, 
+                host=self._host, port=self._port)
         db.createDb(self._dbA)
         db.useDb(self._dbA)
         db.createTable("t1", "(i int)")
@@ -92,45 +94,51 @@ class TestDbRemote(unittest.TestCase):
         db.disconnect()
 
     def testBasicOptionFileConn(self):
-        db = Db(optionFile=self._credFile)
+        db = Db(read_default_file=self._credFile)
         db.createDb(self._dbA)
         db.dropDb(self._dbA)
         db.disconnect()
 
     def testConn_invalidHost(self):
-        db = Db(self._user, self._pass, "invalidHost", self._port)
+        db = Db(user=self._user, passwd=self._pass, 
+                host="invalidHost", port=self._port)
         self.assertRaises(DbException, db.connect)
 
     def testConn_invalidHost(self):
-        db = Db(self._user, self._pass, "dummyHost", 3036)
+        db = Db(user=self._user, passwd=self._pass, 
+                host="dummyHost", port=3036)
         self.assertRaises(DbException, db.connect)
 
     def testConn_invalidPortNo(self):
-        self.assertRaises(DbException, Db, self._user, self._pass,self._host,987654)
+        db = Db(user=self._user, passwd=self._pass, 
+                host=self._host,port=987654)
+        self.assertRaises(DbException, db.connect)
 
     def testConn_wrongPortNo(self):
-        db = Db(self._user, self._pass, self._host, 1579,
-                sleepLen=0, maxRetryCount=10)
+        db = Db(user=self._user, passwd=self._pass, host=self._host, 
+                port=1579, sleepLen=0, maxRetryCount=10)
         self.assertRaises(DbException, db.connect)
 
     def testConn_invalidUserName(self):
-        db = Db("hackr", self._pass, self._host, self._port)
+        db = Db(user="hackr", passwd=self._pass, host=self._host, port=self._port)
         # Disabling because this can work, depending on mysql 
         # configuration, for example, it can default to ''@localhost
         # self.assertRaises(DbException, db.connect)
-        db = Db(self._user, "!MyPw", self._host, self._port)
+        db = Db(user=self._user, passwd="!MyPw", host=self._host, port=self._port)
         # self.assertRaises(DbException, db.connect)
 
     def testIsConnected(self):
         """
         Test isConnected and isConnectedToDb.
         """
-        db = Db(self._user, self._pass, self._host, self._port)
+        db = Db(user=self._user, passwd=self._pass, 
+                host=self._host, port=self._port)
         db.disconnect()
         # not connected at all
         self.assertFalse(db.isConnected())
         # just initialize state, still not connected at all
-        db = Db(self._user, self._pass, self._host, self._port)
+        db = Db(user=self._user, passwd=self._pass, 
+                host=self._host, port=self._port)
         self.assertFalse(db.isConnected())
         # connect to server, not to db
         db.connect()
@@ -152,7 +160,8 @@ class TestDbRemote(unittest.TestCase):
         """
         Test checkExist for databases and tables.
         """
-        db = Db(self._user, self._pass, self._host, self._port)
+        db = Db(user=self._user, passwd=self._pass, 
+                host=self._host, port=self._port)
         self.assertFalse(db.dbExists("bla"))
         self.assertFalse(db.tableExists("bla"))
         self.assertFalse(db.tableExists("bla", "blaBla"))
