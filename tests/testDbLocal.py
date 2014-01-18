@@ -45,7 +45,7 @@ import os
 import tempfile
 import time
 import unittest
-from db import Db, DbException
+from lsst.db.db import Db, DbException
 
 class TestDbLocal(unittest.TestCase):
     def setUp(self):
