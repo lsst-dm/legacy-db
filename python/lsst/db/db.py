@@ -314,12 +314,6 @@ class Db(object):
             else:
                 raise
 
-    def getCurrentDbName(self):
-        """
-        Return the name of current database.
-        """
-        return self.execCommand1("SELECT DATABASE()")[0]
-
     def useDb(self, dbName):
         """
         Connect to database <dbName>.

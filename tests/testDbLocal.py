@@ -227,13 +227,9 @@ class TestDbLocal(unittest.TestCase):
         # create db, still don't connect to it
         db.createDb(self._dbA)
         self.assertTrue(db.isConnected())
-        self.assertNotEqual(db.getCurrentDbName(), self._dbA)
-        self.assertNotEqual(db.getCurrentDbName(), self._dbB)
         # finally connect to it
         db.useDb(self._dbA)
         self.assertTrue(db.isConnected())
-        self.assertEqual(db.getCurrentDbName(), self._dbA)
-        self.assertNotEqual(db.getCurrentDbName(), self._dbB)
         # delete that database
         db.dropDb(self._dbA)
 
