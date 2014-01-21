@@ -170,7 +170,80 @@ class Db(object):
         """
         Create a Db instance.
 
-        @param kwargs     Arguments for mysql connect.
+        @param kwargs     Arguments for mysql connect:
+
+        host
+          string, host to connect
+          
+        user
+          string, user to connect as
+
+        passwd
+          string, password to use
+
+        db
+          string, database to use
+
+        port
+          integer, TCP/IP port to connect to
+
+        unix_socket
+          string, location of unix_socket to use
+
+        conv
+          conversion dictionary, see MySQLdb.converters
+
+        connect_timeout
+          number of seconds to wait before the connection attempt
+          fails.
+
+        compress
+          if set, compression is enabled
+
+        named_pipe
+          if set, a named pipe is used to connect (Windows only)
+
+        init_command
+          command which is run once the connection is created
+
+        read_default_file
+          file from which default client values are read
+
+        read_default_group
+          configuration group to use from the default file
+
+        cursorclass
+          class object, used to create cursors (keyword only)
+
+        use_unicode
+          If True, text-like columns are returned as unicode objects
+          using the connection's character set.  Otherwise, text-like
+          columns are returned as strings.  columns are returned as
+          normal strings. Unicode objects will always be encoded to
+          the connection's character set regardless of this setting.
+
+        charset
+          If supplied, the connection character set will be changed
+          to this character set (MySQL-4.1 and newer). This implies
+          use_unicode=True.
+
+        sql_mode
+          If supplied, the session SQL mode will be changed to this
+          setting (MySQL-4.1 and newer). For more details and legal
+          values, see the MySQL documentation.
+          
+        client_flag
+          integer, flags to use or 0
+          (see MySQL docs or constants/CLIENTS.py)
+
+        ssl
+          dictionary or mapping, contains SSL connection parameters;
+          see the MySQL documentation for more details
+          (mysql_ssl_set()).  If this is set, and the client does not
+          support SSL, NotSupportedError will be raised.
+
+        local_infile
+          integer, non-zero enables LOAD LOCAL INFILE; zero disables
         """
         self._conn = None
         self._logger = logging.getLogger("lsst.db.Db")
