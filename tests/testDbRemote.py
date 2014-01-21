@@ -46,8 +46,9 @@ import unittest
 from lsst.db.db import Db, DbException
 
 class TestDbRemote(unittest.TestCase):
+    CREDFILE = None
+
     def setUp(self):
-        self._credFile = "~/.lsst.testRemote.my.cnf"
         self._initCredentials()
         self._dbA = "%s_dbWrapperTestDb_A" % self._user
         self._dbB = "%s_dbWrapperTestDb_B" % self._user
@@ -61,17 +62,17 @@ class TestDbRemote(unittest.TestCase):
         db.disconnect()
 
     def _initCredentials(self):
-        if self._credFile.startswith('~'): 
-            self._credFile = os.path.expanduser(self._credFile)
-        if not os.path.isfile(self._credFile):
-            raise Exception("Required file '%s' not found" % self._credFile)
+        if self.CREDFILE.startswith('~'): 
+            self.CREDFILE = os.path.expanduser(self.CREDFILE)
+        if not os.path.isfile(self.CREDFILE):
+            raise Exception("Required file '%s' not found" % self.CREDFILE)
         cnf = ConfigParser.ConfigParser()
-        cnf.read(self._credFile)
+        cnf.read(self.CREDFILE)
         if not cnf.has_section("client"):
-            raise Exception("Missing section 'client' in '%s'" % self._credFile)
+            raise Exception("Missing section 'client' in '%s'" % self.CREDFILE)
         for o in ("host", "port", "user"):
             if not cnf.has_option("client", o):
-                raise Exception("Missing option '%s' in '%s'" % (o,self._credFile))
+                raise Exception("Missing option '%s' in '%s'" % (o,self.CREDFILE))
         self._host = cnf.get("client", "host")
         self._port = cnf.get("client", "port")
         self._user = cnf.get("client", "user")
@@ -94,7 +95,7 @@ class TestDbRemote(unittest.TestCase):
         db.disconnect()
 
     def testBasicOptionFileConn(self):
-        db = Db(read_default_file=self._credFile)
+        db = Db(read_default_file=self.CREDFILE)
         db.createDb(self._dbA)
         db.dropDb(self._dbA)
         db.disconnect()
@@ -187,10 +188,12 @@ def main():
         datefmt='%m/%d/%Y %I:%M:%S', 
         level=logging.DEBUG)
 
-    #try:
-    unittest.main()
-    #except DbException as e:
-    #    print e
+    TestDbRemote.CREDFILE = "~/.lsst.testRemote.my.cnf"
+    credFile = os.path.expanduser(TestDbRemote.CREDFILE)
+    if not os.path.isfile(credFile):
+        print "Required file with credentials '%s' not found." % credFile
+    else:
+        unittest.main()
 
 if __name__ == "__main__":
     main()
