@@ -28,11 +28,10 @@ handles database errors.
 @author  Jacek Becla, SLAC
 
 Known issues:
- * pinging server right before every command. That seems heavy. Need to think about
-   more lightweight approach.
  * execCommandN: what if I have a huge number of rows? It'd be nice to also have 
    a way to iterate over results without materializing them all in client memory
    (perhaps via a generator).
+ * need to integrate logging into lsst-stack logging
 """
 
 # standard library
@@ -57,42 +56,7 @@ class DbException(Exception, object):
     """
     Database-specific exception class.
     """
-
-    CANT_CONNECT_TO_DB = 1500
-    CANT_EXEC_SCRIPT   = 1505
-    DB_EXISTS          = 1510
-    DB_DOES_NOT_EXIST  = 1515
-    INVALID_CONN_INFO  = 1520
-    INVALID_DB_NAME    = 1525
-    INVALID_OPT_FILE   = 1527
-    SERVER_CONNECT     = 1530
-    SERVER_DISCONN     = 1535
-    SERVER_ERROR       = 1540
-    NO_DB_SELECTED     = 1545
-    NOT_CONNECTED      = 1550
-    TB_DOES_NOT_EXIST  = 1555
-    TB_EXISTS          = 1560
-    SERVER_WARNING     = 1900
-    INTERNAL           = 9999
-
-    _errorMessages = {
-        CANT_CONNECT_TO_DB: ("Can't connect to database."),
-        CANT_EXEC_SCRIPT: ("Can't execute script."),
-        DB_EXISTS: ("Database already exists."),
-        DB_DOES_NOT_EXIST: ("Database does not exist."),
-        INVALID_CONN_INFO: ("Invalid connection parameter."),
-        INVALID_DB_NAME: ("Invalid database name."),
-        INVALID_OPT_FILE: ("Can't open the option file."),
-        SERVER_CONNECT: "Unable to connect to the database server.",
-        SERVER_DISCONN: ("Failed to disconnect from the database server."),
-        SERVER_ERROR: ("Internal database server error."),
-        NO_DB_SELECTED: ("No database selected."),
-        NOT_CONNECTED: "Not connected to the database server.",
-        TB_DOES_NOT_EXIST: ("Table does not exist."),
-        TB_EXISTS: ("Table already exists."),
-        SERVER_WARNING: ("Warning."),
-        INTERNAL: ("Internal error.")
-    }
+    _errorMessages = {}
 
     def __init__(self, errCode, *messages):
         """
@@ -119,6 +83,28 @@ class DbException(Exception, object):
     @property
     def messages(self):
     	return self._messages
+
+def _defineErr(errCode, errName, errMsg):
+    setattr(DbException, errName, errCode)
+    DbException._errorMessages[errCode] = errMsg
+
+_defineErr(1500, "CANT_CONNECT_TO_DB", "Can't connect to database.")
+_defineErr(1505, "CANT_EXEC_SCRIPT",   "Can't execute script.")
+_defineErr(1510, "DB_EXISTS",          "Database already exists.")
+_defineErr(1515, "DB_DOES_NOT_EXIST",  "Database does not exist.")
+_defineErr(1520, "INVALID_CONN_INFO",  "Invalid connection parameter.") 
+_defineErr(1525, "INVALID_DB_NAME",    "Invalid database name.")
+_defineErr(1530, "INVALID_OPT_FILE",   "Can't open the option file.")
+_defineErr(1532, "PASSWD_NOT_ALLOWED", "Password disallowed, use option file.")
+_defineErr(1535, "SERVER_CONNECT",     "Unable to connect to server.")
+_defineErr(1540, "SERVER_DISCONN",     "Failed to disconnect from db server.")
+_defineErr(1545, "SERVER_ERROR",       "Internal db server error.")
+_defineErr(1550, "NO_DB_SELECTED",     "No database selected.")
+_defineErr(1555, "NOT_CONNECTED",      "Not connected to the db server.")
+_defineErr(1560, "TB_DOES_NOT_EXIST",  "Table does not exist.")
+_defineErr(1565, "TB_EXISTS",          "Table already exists.")
+_defineErr(1900, "SERVER_WARNING",     "Warning.")
+_defineErr(9999, "INTERNAL",           "Internal error.")
 
 ####################################################################################
 class Db(object):
@@ -149,6 +135,8 @@ class Db(object):
     }
 
     # Map of MySQLdb driver connect() keywords to mysql executable option names.
+    # Note: 'read_default_group' is not supported, since it can cause
+    # the MySQLdb driver and the mysql executable to connect differently.
     _connectArgNameMap = {
         'host':              'host',
         'user':              'user',
@@ -160,13 +148,11 @@ class Db(object):
         'compress':          'compress',
         'named_pipe':        'pipe',
         'read_default_file': 'defaults-file',
-        # note: 'read_default_group' is not supported, since it can cause
-        # the MySQLdb driver and the mysql executable to connect differently.
         'charset':           'default-character-set',
         'local_infile':      'local-infile'
     }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, **kwargs):
         """
         Create a Db instance.
 
@@ -174,7 +160,7 @@ class Db(object):
 
         host
           string, host to connect
-          
+
         user
           string, user to connect as
 
@@ -190,9 +176,6 @@ class Db(object):
         unix_socket
           string, location of unix_socket to use
 
-        conv
-          conversion dictionary, see MySQLdb.converters
-
         connect_timeout
           number of seconds to wait before the connection attempt
           fails.
@@ -203,47 +186,20 @@ class Db(object):
         named_pipe
           if set, a named pipe is used to connect (Windows only)
 
-        init_command
-          command which is run once the connection is created
-
         read_default_file
           file from which default client values are read
-
-        read_default_group
-          configuration group to use from the default file
-
-        cursorclass
-          class object, used to create cursors (keyword only)
-
-        use_unicode
-          If True, text-like columns are returned as unicode objects
-          using the connection's character set.  Otherwise, text-like
-          columns are returned as strings.  columns are returned as
-          normal strings. Unicode objects will always be encoded to
-          the connection's character set regardless of this setting.
 
         charset
           If supplied, the connection character set will be changed
           to this character set (MySQL-4.1 and newer). This implies
           use_unicode=True.
 
-        sql_mode
-          If supplied, the session SQL mode will be changed to this
-          setting (MySQL-4.1 and newer). For more details and legal
-          values, see the MySQL documentation.
-          
-        client_flag
-          integer, flags to use or 0
-          (see MySQL docs or constants/CLIENTS.py)
-
-        ssl
-          dictionary or mapping, contains SSL connection parameters;
-          see the MySQL documentation for more details
-          (mysql_ssl_set()).  If this is set, and the client does not
-          support SSL, NotSupportedError will be raised.
-
         local_infile
           integer, non-zero enables LOAD LOCAL INFILE; zero disables
+
+        Note that if the host is set to "localhost", "127.0.0.1" will be used
+        instead, because MySQL silently switches to a default socket if
+        "localhost" is used.
         """
         self._conn = None
         self._logger = logging.getLogger("lsst.db.Db")
@@ -266,8 +222,11 @@ class Db(object):
             self._kwargs["port"] = int(self._kwargs["port"])
         # Map MySQL warnings to exceptions
         warnings.filterwarnings("error", category=MySQLdb.Warning)
-        self._logger.info("Created lsst.db.Db with connection parameters: %s" % \
-                              str(self._kwargs))
+        # Log the connection parameters
+        self._logger.info("Created lsst.db.Db with connection parameters " + \
+                          "(password not shown): %s" % \
+                              str(["%s:%s" % (x, self._kwargs[x]) \
+                                   for x in self._kwargs if not x == "passwd"]))
 
     def __del__(self):
         """
@@ -312,7 +271,7 @@ class Db(object):
             self._logger.info("Connecting (attempt %d of %d)" %
                               (n, self._attemptMaxNo))
             try:
-                self._logger.debug("mysql.connect. " + str(self._kwargs))
+                self._logger.debug("mysql.connect.")
                 self._conn = MySQLdb.connect(**self._kwargs)
                 return
             except MySQLdb.Error as e:
@@ -604,12 +563,18 @@ class Db(object):
 
         @param scriptPath Path the the SQL script.
         @param dbName     Database name (optional).
+
+        Note that in order to avoid exposing password, this function disallows
+        passing password through arguments. Option file containing credentials
+        must be used instead.
         """
+        if "passwd" in self._kwargs:
+            raise DbException(DbException.PASSWD_NOT_ALLOWED)
         connectArgs = self._kwargs.copy()
-        print "connectArgs1=", str(connectArgs)
+        if "read_default_group" in connectArgs:   # remove option that is not valid
+            connectArgs.pop("read_default_group") # for MySQL client program
         if dbName is not None:
             connectArgs["db"] = dbName
-        print "connectArgs2=", str(connectArgs)
         mysqlArgs = ["mysql"]
         if "read_default_file" not in connectArgs:
             # Match MySQLdb driver behavior and skip reading the usual options
@@ -618,11 +583,15 @@ class Db(object):
             mysqlArgs.append("--no-defaults")
         for k in connectArgs:
             if k in self._connectArgNameMap:
-                mysqlArgs.append("--%s=%s" %
-                                 (self._connectArgNameMap[k], connectArgs[k]))
+                s = "--%s=%s" % (self._connectArgNameMap[k], connectArgs[k])
+                # MySQL gets confused unless this option is first
+                if k == "read_default_file":
+                    mysqlArgs.insert(1, s)
+                else:
+                    mysqlArgs.append(s)
         dbInfo = " into db '%s'." % dbName if dbName is not None else ""
         self._logger.info("Loading script %s%s. Args are: %s" % \
-                              (scriptPath,dbInfo, mysqlArgs))
+                              (scriptPath, dbInfo, str(mysqlArgs)))
         with file(scriptPath) as scriptFile:
             if subprocess.call(mysqlArgs, stdin=scriptFile) != 0:
                 msg = "Failed to execute %s < %s" % (connectArgs, scriptPath)

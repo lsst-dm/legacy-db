@@ -48,6 +48,15 @@ import unittest
 from lsst.db.db import Db, DbException
 
 class TestDbLocal(unittest.TestCase):
+    """
+    This test requires credential file with the following:
+[mysql]
+user     = <userName>
+passwd   = <passwd> # this is optional
+host     = localhost
+port     = 3306
+socket   = <path to the socket>
+    """
     CREDFILE = None
 
     def setUp(self):
@@ -64,23 +73,25 @@ class TestDbLocal(unittest.TestCase):
         db.disconnect()
 
     def _initCredentials(self):
+        theSection = "mysql"
         if self.CREDFILE.startswith('~'): 
             self.CREDFILE = os.path.expanduser(self.CREDFILE)
         if not os.path.isfile(self.CREDFILE):
             raise Exception("Required file '%s' not found" % self.CREDFILE)
         cnf = ConfigParser.ConfigParser()
         cnf.read(self.CREDFILE)
-        if not cnf.has_section("client"):
-            raise Exception("Missing section 'client' in '%s'" % self.CREDFILE)
+        if not cnf.has_section(theSection):
+            raise Exception("Missing section '%s' in '%s'" % \
+                                (theSection, self.CREDFILE))
         for o in ("socket", "host", "port", "user"):
-            if not cnf.has_option("client", o):
+            if not cnf.has_option(theSection, o):
                 raise Exception("Missing option '%s' in '%s'" % (o,self.CREDFILE))
-        self._sock = cnf.get("client", "socket")
-        self._host = cnf.get("client", "host")
-        self._port = cnf.get("client", "port")
-        self._user = cnf.get("client", "user")
-        if cnf.has_option("client", "password"):
-            self._pass = cnf.get("client", "password")
+        self._sock = cnf.get(theSection, "socket")
+        self._host = cnf.get(theSection, "host")
+        self._port = cnf.get(theSection, "port")
+        self._user = cnf.get(theSection, "user")
+        if cnf.has_option(theSection, "password"):
+            self._pass = cnf.get(theSection, "password")
         else:
             self._pass = ''
 
@@ -409,8 +420,8 @@ class TestDbLocal(unittest.TestCase):
         f.write("create table t(i int);\n")
         f.write("insert into t values (1), (2), (2), (5);\n")
         f.close()
-        db = Db(user=self._user, passwd=self._pass, 
-                host=self._host, port=self._port)
+        db = Db(user=self._user, host=self._host, port=self._port,
+                read_default_file=self.CREDFILE)
         db.loadSqlScript(fN)
         assert(10 == db.execCommand1("select sum(i) from %s.t" % self._dbA)[0])
         db.dropDb(self._dbA)
@@ -423,11 +434,22 @@ class TestDbLocal(unittest.TestCase):
         f.write("create table t(i int, d double);\n")
         f.write("insert into t values (1, 1.1), (2, 2.2);\n")
         f.close()
-        db = Db(user=self._user, passwd=self._pass, 
-                host=self._host, port=self._port)
+        db = Db(user=self._user, host=self._host, port=self._port,
+                read_default_file=self.CREDFILE)
         db.createDb(self._dbA)
         db.loadSqlScript(fN, self._dbA)
         assert(3 == db.execCommand1("select sum(i) from %s.t" % self._dbA)[0])
+        db.dropDb(self._dbA)
+        db.disconnect()
+        os.remove(fN)
+
+    def testLoadSqlScriptPlainPasswd(self):
+        # password is disallowed through loadsqlscript, check on that.
+        f, fN = tempfile.mkstemp(suffix=".csv", dir="/tmp", text="True")
+        db = Db(user=self._user, passwd=self._pass, 
+                host=self._host, port=self._port)
+        db.createDb(self._dbA)
+        self.assertRaises(DbException, db.loadSqlScript, fN, self._dbA)
         db.dropDb(self._dbA)
         db.disconnect()
         os.remove(fN)
