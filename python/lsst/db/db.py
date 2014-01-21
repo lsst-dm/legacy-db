@@ -266,8 +266,15 @@ class Db(object):
             self._kwargs["port"] = int(self._kwargs["port"])
         # Map MySQL warnings to exceptions
         warnings.filterwarnings("error", category=MySQLdb.Warning)
-        self._logger.info("Created lsst.db.Db with connection parameters: %s" % \
-                              str(self._kwargs))
+        # Log the connection parameters, hiding password
+        s = ""
+        if "passwd" in self._kwargs:
+            kwa = copy.deepcopy(self._kwargs)
+            kwa["passwd"] = "<hidden>"
+            s = str(kwa)
+        else:
+            s = str(self._kwargs)
+        self._logger.info("Created lsst.db.Db with connection parameters: %s" % s)
 
     def __del__(self):
         """
@@ -312,7 +319,7 @@ class Db(object):
             self._logger.info("Connecting (attempt %d of %d)" %
                               (n, self._attemptMaxNo))
             try:
-                self._logger.debug("mysql.connect. " + str(self._kwargs))
+                self._logger.debug("mysql.connect.")
                 self._conn = MySQLdb.connect(**self._kwargs)
                 return
             except MySQLdb.Error as e:
@@ -621,8 +628,16 @@ class Db(object):
                 mysqlArgs.append("--%s=%s" %
                                  (self._connectArgNameMap[k], connectArgs[k]))
         dbInfo = " into db '%s'." % dbName if dbName is not None else ""
+
+        s = ""
+        if "passwd" in mysqlArgs:
+            x = copy.deepcopy(self._kwargs)
+            x["passwd"] = "<hidden>"
+            s = str(x)
+        else:
+            s = str(mysqlArgs)
         self._logger.info("Loading script %s%s. Args are: %s" % \
-                              (scriptPath,dbInfo, mysqlArgs))
+                              (scriptPath, dbInfo, s))
         with file(scriptPath) as scriptFile:
             if subprocess.call(mysqlArgs, stdin=scriptFile) != 0:
                 msg = "Failed to execute %s < %s" % (connectArgs, scriptPath)
