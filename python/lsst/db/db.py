@@ -57,42 +57,7 @@ class DbException(Exception, object):
     """
     Database-specific exception class.
     """
-
-    CANT_CONNECT_TO_DB = 1500
-    CANT_EXEC_SCRIPT   = 1505
-    DB_EXISTS          = 1510
-    DB_DOES_NOT_EXIST  = 1515
-    INVALID_CONN_INFO  = 1520
-    INVALID_DB_NAME    = 1525
-    INVALID_OPT_FILE   = 1527
-    SERVER_CONNECT     = 1530
-    SERVER_DISCONN     = 1535
-    SERVER_ERROR       = 1540
-    NO_DB_SELECTED     = 1545
-    NOT_CONNECTED      = 1550
-    TB_DOES_NOT_EXIST  = 1555
-    TB_EXISTS          = 1560
-    SERVER_WARNING     = 1900
-    INTERNAL           = 9999
-
-    _errorMessages = {
-        CANT_CONNECT_TO_DB: ("Can't connect to database."),
-        CANT_EXEC_SCRIPT: ("Can't execute script."),
-        DB_EXISTS: ("Database already exists."),
-        DB_DOES_NOT_EXIST: ("Database does not exist."),
-        INVALID_CONN_INFO: ("Invalid connection parameter."),
-        INVALID_DB_NAME: ("Invalid database name."),
-        INVALID_OPT_FILE: ("Can't open the option file."),
-        SERVER_CONNECT: "Unable to connect to the database server.",
-        SERVER_DISCONN: ("Failed to disconnect from the database server."),
-        SERVER_ERROR: ("Internal database server error."),
-        NO_DB_SELECTED: ("No database selected."),
-        NOT_CONNECTED: "Not connected to the database server.",
-        TB_DOES_NOT_EXIST: ("Table does not exist."),
-        TB_EXISTS: ("Table already exists."),
-        SERVER_WARNING: ("Warning."),
-        INTERNAL: ("Internal error.")
-    }
+    _errorMessages = {}
 
     def __init__(self, errCode, *messages):
         """
@@ -119,6 +84,27 @@ class DbException(Exception, object):
     @property
     def messages(self):
     	return self._messages
+
+def defineErr(errCode, errName, errMsg):
+    setattr(DbException, errName, errCode)
+    DbException._errorMessages[errCode] = errMsg
+
+defineErr(1500, "CANT_CONNECT_TO_DB", "Can't connect to database.")
+defineErr(1505, "CANT_EXEC_SCRIPT",   "Can't execute script.")
+defineErr(1510, "DB_EXISTS",          "Database already exists.")
+defineErr(1515, "DB_DOES_NOT_EXIST",  "Database does not exist.")
+defineErr(1520, "INVALID_CONN_INFO",  "Invalid connection parameter.") 
+defineErr(1525, "INVALID_DB_NAME",    "Invalid database name.")
+defineErr(1530, "INVALID_OPT_FILE",   "Can't open the option file.")
+defineErr(1535, "SERVER_CONNECT",     "Unable to connect to server.")
+defineErr(1540, "SERVER_DISCONN",     "Failed to disconnect from db server.")
+defineErr(1545, "SERVER_ERROR",       "Internal db server error.")
+defineErr(1550, "NO_DB_SELECTED",     "No database selected.")
+defineErr(1555, "NOT_CONNECTED",      "Not connected to the db server.")
+defineErr(1560, "TB_DOES_NOT_EXIST",  "Table does not exist.")
+defineErr(1565, "TB_EXISTS",          "Table already exists.")
+defineErr(1900, "SERVER_WARNING",     "Warning.")
+defineErr(9999, "INTERNAL",           "Internal error")
 
 ####################################################################################
 class Db(object):
@@ -174,7 +160,7 @@ class Db(object):
 
         host
           string, host to connect
-          
+
         user
           string, user to connect as
 
@@ -231,7 +217,7 @@ class Db(object):
           If supplied, the session SQL mode will be changed to this
           setting (MySQL-4.1 and newer). For more details and legal
           values, see the MySQL documentation.
-          
+
         client_flag
           integer, flags to use or 0
           (see MySQL docs or constants/CLIENTS.py)
