@@ -603,10 +603,8 @@ class Db(object):
         @param dbName     Database name (optional).
         """
         connectArgs = self._kwargs.copy()
-        print "connectArgs1=", str(connectArgs)
         if dbName is not None:
             connectArgs["db"] = dbName
-        print "connectArgs2=", str(connectArgs)
         mysqlArgs = ["mysql"]
         if "read_default_file" not in connectArgs:
             # Match MySQLdb driver behavior and skip reading the usual options
