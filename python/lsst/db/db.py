@@ -230,6 +230,10 @@ class Db(object):
 
         local_infile
           integer, non-zero enables LOAD LOCAL INFILE; zero disables
+
+        Note that if the host is set to "localhost", "127.0.0.1" will be used
+        instead, because MySQL silently switches to a default socket if
+        "localhost" is used.
         """
         self._conn = None
         self._logger = logging.getLogger("lsst.db.Db")
