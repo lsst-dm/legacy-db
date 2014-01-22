@@ -96,6 +96,7 @@ defineErr(1515, "DB_DOES_NOT_EXIST",  "Database does not exist.")
 defineErr(1520, "INVALID_CONN_INFO",  "Invalid connection parameter.") 
 defineErr(1525, "INVALID_DB_NAME",    "Invalid database name.")
 defineErr(1530, "INVALID_OPT_FILE",   "Can't open the option file.")
+defineErr(1532, "PASSWD_NOT_ALLOWED", "Password disallowed, use option file.")
 defineErr(1535, "SERVER_CONNECT",     "Unable to connect to server.")
 defineErr(1540, "SERVER_DISCONN",     "Failed to disconnect from db server.")
 defineErr(1545, "SERVER_ERROR",       "Internal db server error.")
@@ -104,7 +105,7 @@ defineErr(1555, "NOT_CONNECTED",      "Not connected to the db server.")
 defineErr(1560, "TB_DOES_NOT_EXIST",  "Table does not exist.")
 defineErr(1565, "TB_EXISTS",          "Table already exists.")
 defineErr(1900, "SERVER_WARNING",     "Warning.")
-defineErr(9999, "INTERNAL",           "Internal error")
+defineErr(9999, "INTERNAL",           "Internal error.")
 
 ####################################################################################
 class Db(object):
@@ -256,15 +257,11 @@ class Db(object):
             self._kwargs["port"] = int(self._kwargs["port"])
         # Map MySQL warnings to exceptions
         warnings.filterwarnings("error", category=MySQLdb.Warning)
-        # Log the connection parameters, hiding password
-        s = ""
-        if "passwd" in self._kwargs:
-            kwa = copy.deepcopy(self._kwargs)
-            kwa["passwd"] = "<hidden>"
-            s = str(kwa)
-        else:
-            s = str(self._kwargs)
-        self._logger.info("Created lsst.db.Db with connection parameters: %s" % s)
+        # Log the connection parameters
+        self._logger.info("Created lsst.db.Db with connection parameters " + \
+                          "(password not shown): %s" % \
+                              str(["%s:%s" % (x, self._kwargs[x]) \
+                                   for x in self._kwargs if not x == "passwd"]))
 
     def __del__(self):
         """
@@ -601,8 +598,16 @@ class Db(object):
 
         @param scriptPath Path the the SQL script.
         @param dbName     Database name (optional).
+
+        Note that in order to avoid exposing password, this function disallows
+        passing password through arguments. Option file containing credentials
+        must be used instead.
         """
+        if "passwd" in self._kwargs:
+            raise DbException(DbException.PASSWD_NOT_ALLOWED)
         connectArgs = self._kwargs.copy()
+        if "read_default_group" in connectArgs:   # remove option that is not valid
+            connectArgs.pop("read_default_group") # for MySQL client program
         if dbName is not None:
             connectArgs["db"] = dbName
         mysqlArgs = ["mysql"]
@@ -613,19 +618,15 @@ class Db(object):
             mysqlArgs.append("--no-defaults")
         for k in connectArgs:
             if k in self._connectArgNameMap:
-                mysqlArgs.append("--%s=%s" %
-                                 (self._connectArgNameMap[k], connectArgs[k]))
+                s = "--%s=%s" % (self._connectArgNameMap[k], connectArgs[k])
+                # MySQL gets confused unless this option is first
+                if k == "read_default_file":
+                    mysqlArgs.insert(1, s)
+                else:
+                    mysqlArgs.append(s)
         dbInfo = " into db '%s'." % dbName if dbName is not None else ""
-
-        s = ""
-        if "passwd" in mysqlArgs:
-            x = copy.deepcopy(self._kwargs)
-            x["passwd"] = "<hidden>"
-            s = str(x)
-        else:
-            s = str(mysqlArgs)
         self._logger.info("Loading script %s%s. Args are: %s" % \
-                              (scriptPath, dbInfo, s))
+                              (scriptPath, dbInfo, str(mysqlArgs)))
         with file(scriptPath) as scriptFile:
             if subprocess.call(mysqlArgs, stdin=scriptFile) != 0:
                 msg = "Failed to execute %s < %s" % (connectArgs, scriptPath)
