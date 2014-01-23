@@ -152,7 +152,7 @@ class Db(object):
         'local_infile':      'local-infile'
     }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, **kwargs):
         """
         Create a Db instance.
 
