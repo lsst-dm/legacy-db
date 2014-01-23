@@ -28,11 +28,10 @@ handles database errors.
 @author  Jacek Becla, SLAC
 
 Known issues:
- * pinging server right before every command. That seems heavy. Need to think about
-   more lightweight approach.
  * execCommandN: what if I have a huge number of rows? It'd be nice to also have 
    a way to iterate over results without materializing them all in client memory
    (perhaps via a generator).
+ * need to integrate logging into lsst-stack logging
 """
 
 # standard library
@@ -85,27 +84,27 @@ class DbException(Exception, object):
     def messages(self):
     	return self._messages
 
-def defineErr(errCode, errName, errMsg):
+def _defineErr(errCode, errName, errMsg):
     setattr(DbException, errName, errCode)
     DbException._errorMessages[errCode] = errMsg
 
-defineErr(1500, "CANT_CONNECT_TO_DB", "Can't connect to database.")
-defineErr(1505, "CANT_EXEC_SCRIPT",   "Can't execute script.")
-defineErr(1510, "DB_EXISTS",          "Database already exists.")
-defineErr(1515, "DB_DOES_NOT_EXIST",  "Database does not exist.")
-defineErr(1520, "INVALID_CONN_INFO",  "Invalid connection parameter.") 
-defineErr(1525, "INVALID_DB_NAME",    "Invalid database name.")
-defineErr(1530, "INVALID_OPT_FILE",   "Can't open the option file.")
-defineErr(1532, "PASSWD_NOT_ALLOWED", "Password disallowed, use option file.")
-defineErr(1535, "SERVER_CONNECT",     "Unable to connect to server.")
-defineErr(1540, "SERVER_DISCONN",     "Failed to disconnect from db server.")
-defineErr(1545, "SERVER_ERROR",       "Internal db server error.")
-defineErr(1550, "NO_DB_SELECTED",     "No database selected.")
-defineErr(1555, "NOT_CONNECTED",      "Not connected to the db server.")
-defineErr(1560, "TB_DOES_NOT_EXIST",  "Table does not exist.")
-defineErr(1565, "TB_EXISTS",          "Table already exists.")
-defineErr(1900, "SERVER_WARNING",     "Warning.")
-defineErr(9999, "INTERNAL",           "Internal error.")
+_defineErr(1500, "CANT_CONNECT_TO_DB", "Can't connect to database.")
+_defineErr(1505, "CANT_EXEC_SCRIPT",   "Can't execute script.")
+_defineErr(1510, "DB_EXISTS",          "Database already exists.")
+_defineErr(1515, "DB_DOES_NOT_EXIST",  "Database does not exist.")
+_defineErr(1520, "INVALID_CONN_INFO",  "Invalid connection parameter.") 
+_defineErr(1525, "INVALID_DB_NAME",    "Invalid database name.")
+_defineErr(1530, "INVALID_OPT_FILE",   "Can't open the option file.")
+_defineErr(1532, "PASSWD_NOT_ALLOWED", "Password disallowed, use option file.")
+_defineErr(1535, "SERVER_CONNECT",     "Unable to connect to server.")
+_defineErr(1540, "SERVER_DISCONN",     "Failed to disconnect from db server.")
+_defineErr(1545, "SERVER_ERROR",       "Internal db server error.")
+_defineErr(1550, "NO_DB_SELECTED",     "No database selected.")
+_defineErr(1555, "NOT_CONNECTED",      "Not connected to the db server.")
+_defineErr(1560, "TB_DOES_NOT_EXIST",  "Table does not exist.")
+_defineErr(1565, "TB_EXISTS",          "Table already exists.")
+_defineErr(1900, "SERVER_WARNING",     "Warning.")
+_defineErr(9999, "INTERNAL",           "Internal error.")
 
 ####################################################################################
 class Db(object):
@@ -136,6 +135,8 @@ class Db(object):
     }
 
     # Map of MySQLdb driver connect() keywords to mysql executable option names.
+    # Note: 'read_default_group' is not supported, since it can cause
+    # the MySQLdb driver and the mysql executable to connect differently.
     _connectArgNameMap = {
         'host':              'host',
         'user':              'user',
@@ -147,8 +148,6 @@ class Db(object):
         'compress':          'compress',
         'named_pipe':        'pipe',
         'read_default_file': 'defaults-file',
-        # note: 'read_default_group' is not supported, since it can cause
-        # the MySQLdb driver and the mysql executable to connect differently.
         'charset':           'default-character-set',
         'local_infile':      'local-infile'
     }
@@ -177,9 +176,6 @@ class Db(object):
         unix_socket
           string, location of unix_socket to use
 
-        conv
-          conversion dictionary, see MySQLdb.converters
-
         connect_timeout
           number of seconds to wait before the connection attempt
           fails.
@@ -190,44 +186,13 @@ class Db(object):
         named_pipe
           if set, a named pipe is used to connect (Windows only)
 
-        init_command
-          command which is run once the connection is created
-
         read_default_file
           file from which default client values are read
-
-        read_default_group
-          configuration group to use from the default file
-
-        cursorclass
-          class object, used to create cursors (keyword only)
-
-        use_unicode
-          If True, text-like columns are returned as unicode objects
-          using the connection's character set.  Otherwise, text-like
-          columns are returned as strings.  columns are returned as
-          normal strings. Unicode objects will always be encoded to
-          the connection's character set regardless of this setting.
 
         charset
           If supplied, the connection character set will be changed
           to this character set (MySQL-4.1 and newer). This implies
           use_unicode=True.
-
-        sql_mode
-          If supplied, the session SQL mode will be changed to this
-          setting (MySQL-4.1 and newer). For more details and legal
-          values, see the MySQL documentation.
-
-        client_flag
-          integer, flags to use or 0
-          (see MySQL docs or constants/CLIENTS.py)
-
-        ssl
-          dictionary or mapping, contains SSL connection parameters;
-          see the MySQL documentation for more details
-          (mysql_ssl_set()).  If this is set, and the client does not
-          support SSL, NotSupportedError will be raised.
 
         local_infile
           integer, non-zero enables LOAD LOCAL INFILE; zero disables
