@@ -39,13 +39,18 @@ Known issues and todos:
    on user input.
 """
 
+# standard library
 import ConfigParser
 import logging
 import os
 import tempfile
 import time
 import unittest
+
+# local
 from lsst.db.db import Db, DbException
+from lsst.db.utils import readCredentialFile
+
 
 class TestDbLocal(unittest.TestCase):
     """
@@ -60,7 +65,13 @@ socket   = <path to the socket>
     CREDFILE = None
 
     def setUp(self):
-        self._initCredentials()
+        dict = readCredentialFile(self.CREDFILE,
+                                  logging.getLogger("lsst.db.testDbLocal"))
+        (self._sock, self._host, self._port, self._user, self._pass) = \
+           [dict.get(k, None) for k in (
+                'unix_socket', 'host', 'port', 'user', 'passwd')]
+        if self._pass is None:
+            self._pass = ''
         self._dbA = "%s_dbWrapperTestDb_A" % self._user
         self._dbB = "%s_dbWrapperTestDb_B" % self._user
         self._dbC = "%s_dbWrapperTestDb_C" % self._user
@@ -71,29 +82,6 @@ socket   = <path to the socket>
         if db.dbExists(self._dbB): db.dropDb(self._dbB)
         if db.dbExists(self._dbC): db.dropDb(self._dbC)
         db.disconnect()
-
-    def _initCredentials(self):
-        theSection = "mysql"
-        if self.CREDFILE.startswith('~'): 
-            self.CREDFILE = os.path.expanduser(self.CREDFILE)
-        if not os.path.isfile(self.CREDFILE):
-            raise Exception("Required file '%s' not found" % self.CREDFILE)
-        cnf = ConfigParser.ConfigParser()
-        cnf.read(self.CREDFILE)
-        if not cnf.has_section(theSection):
-            raise Exception("Missing section '%s' in '%s'" % \
-                                (theSection, self.CREDFILE))
-        for o in ("socket", "host", "port", "user"):
-            if not cnf.has_option(theSection, o):
-                raise Exception("Missing option '%s' in '%s'" % (o,self.CREDFILE))
-        self._sock = cnf.get(theSection, "socket")
-        self._host = cnf.get(theSection, "host")
-        self._port = cnf.get(theSection, "port")
-        self._user = cnf.get(theSection, "user")
-        if cnf.has_option(theSection, "password"):
-            self._pass = cnf.get(theSection, "password")
-        else:
-            self._pass = ''
 
     def testBasicHostPortConn(self):
         """

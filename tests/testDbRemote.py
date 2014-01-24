@@ -37,19 +37,27 @@ Known issues and todos:
  * none
 """
 
+# standard library
 import ConfigParser
 import logging
 import os
 import tempfile
 import time
 import unittest
+
+# local
 from lsst.db.db import Db, DbException
+from lsst.db.utils import readCredentialFile
+
 
 class TestDbRemote(unittest.TestCase):
     CREDFILE = None
 
     def setUp(self):
-        self._initCredentials()
+        dict = readCredentialFile(self.CREDFILE, 
+                                  logging.getLogger("lsst.db.testDbRemote"))
+        (self._host, self._port, self._user, self._pass) = \
+            [dict[k] for k in ('host', 'port', 'user', 'passwd')]
         self._dbA = "%s_dbWrapperTestDb_A" % self._user
         self._dbB = "%s_dbWrapperTestDb_B" % self._user
         self._dbC = "%s_dbWrapperTestDb_C" % self._user
@@ -60,26 +68,6 @@ class TestDbRemote(unittest.TestCase):
         if db.dbExists(self._dbB): db.dropDb(self._dbB)
         if db.dbExists(self._dbC): db.dropDb(self._dbC)
         db.disconnect()
-
-    def _initCredentials(self):
-        if self.CREDFILE.startswith('~'): 
-            self.CREDFILE = os.path.expanduser(self.CREDFILE)
-        if not os.path.isfile(self.CREDFILE):
-            raise Exception("Required file '%s' not found" % self.CREDFILE)
-        cnf = ConfigParser.ConfigParser()
-        cnf.read(self.CREDFILE)
-        if not cnf.has_section("client"):
-            raise Exception("Missing section 'client' in '%s'" % self.CREDFILE)
-        for o in ("host", "port", "user"):
-            if not cnf.has_option("client", o):
-                raise Exception("Missing option '%s' in '%s'" % (o,self.CREDFILE))
-        self._host = cnf.get("client", "host")
-        self._port = cnf.get("client", "port")
-        self._user = cnf.get("client", "user")
-        if cnf.has_option("client", "password"):
-            self._pass = cnf.get("client", "password")
-        else:
-            self._pass = ''
 
     def testBasicHostPortConn(self):
         """

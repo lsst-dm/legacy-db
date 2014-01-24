@@ -50,6 +50,8 @@ from time import sleep
 # related third-package library
 import MySQLdb
 
+# local
+from lsst.db.mysqlInternal import mysql_connectArgToOptionMap as argToOptionMap
 
 ####################################################################################
 class DbException(Exception, object):
@@ -134,24 +136,6 @@ class Db(object):
         2013: DbException.SERVER_CONNECT
     }
 
-    # Map of MySQLdb driver connect() keywords to mysql executable option names.
-    # Note: 'read_default_group' is not supported, since it can cause
-    # the MySQLdb driver and the mysql executable to connect differently.
-    _connectArgNameMap = {
-        'host':              'host',
-        'user':              'user',
-        'passwd':            'password',
-        'db':                'database',
-        'port':              'port',
-        'unix_socket':       'socket',
-        'connect_timeout':   'connect_timeout',
-        'compress':          'compress',
-        'named_pipe':        'pipe',
-        'read_default_file': 'defaults-file',
-        'charset':           'default-character-set',
-        'local_infile':      'local-infile'
-    }
-
     def __init__(self, **kwargs):
         """
         Create a Db instance.
@@ -207,7 +191,7 @@ class Db(object):
         self._sleepLen = self._kwargs.pop("sleepLen", 3)
         self._attemptMaxNo = 1 + self._kwargs.pop("maxRetryCount", 0)
         for k in self._kwargs:
-            if k not in self._connectArgNameMap:
+            if k not in argToOptionMap:
                 raise DbException(DbException.INVALID_CONN_INFO, repr(k))
         # If a MySQL defaults file will be read, make sure to pull values from the
         # [mysql] group, just like the mysql executable does. The [client] group
@@ -582,8 +566,8 @@ class Db(object):
             # be first, or MySQL will complain "unknown option".
             mysqlArgs.append("--no-defaults")
         for k in connectArgs:
-            if k in self._connectArgNameMap:
-                s = "--%s=%s" % (self._connectArgNameMap[k], connectArgs[k])
+            if k in argToOptionMap:
+                s = "--%s=%s" % (argToOptionMap[k], connectArgs[k])
                 # MySQL gets confused unless this option is first
                 if k == "read_default_file":
                     mysqlArgs.insert(1, s)
