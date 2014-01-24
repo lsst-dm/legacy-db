@@ -22,14 +22,16 @@
 
 """
 This is a unittest for the Db class, geared for testing remote server connections.
-It is sufficient if the user has normal privileges.
 
-It requires ~/.lsst.testRemote.my.cnf config file with the following:
-[client]
+The test requires ~/.lsst.testRemote.my.cnf config file with the following:
+[mysql]
 user     = <username>
-password = <password> # this can be ommitted if password is empty
+passwd = <passwd> # this is optional
 host     = <host>
 port     = <port>
+
+It is sufficient if the user has normal privileges.
+
 
 @author  Jacek Becla, SLAC
 
@@ -37,19 +39,29 @@ Known issues and todos:
  * none
 """
 
+# standard library
 import ConfigParser
 import logging
 import os
 import tempfile
 import time
 import unittest
+
+# local
 from lsst.db.db import Db, DbException
+from utils import readCredentialFile
+
 
 class TestDbRemote(unittest.TestCase):
-    CREDFILE = None
+    CREDFILE = "~/.lsst.testRemote.my.cnf"
 
     def setUp(self):
-        self._initCredentials()
+        dict = readCredentialFile(self.CREDFILE, 
+                                  logging.getLogger("lsst.db.testDbRemote"))
+        (self._host, self._port, self._user, self._pass) = \
+            [dict[k] for k in ('host', 'port', 'user', 'passwd')]
+        if self._pass is None:
+            self._pass = ''
         self._dbA = "%s_dbWrapperTestDb_A" % self._user
         self._dbB = "%s_dbWrapperTestDb_B" % self._user
         self._dbC = "%s_dbWrapperTestDb_C" % self._user
@@ -60,26 +72,6 @@ class TestDbRemote(unittest.TestCase):
         if db.dbExists(self._dbB): db.dropDb(self._dbB)
         if db.dbExists(self._dbC): db.dropDb(self._dbC)
         db.disconnect()
-
-    def _initCredentials(self):
-        if self.CREDFILE.startswith('~'): 
-            self.CREDFILE = os.path.expanduser(self.CREDFILE)
-        if not os.path.isfile(self.CREDFILE):
-            raise Exception("Required file '%s' not found" % self.CREDFILE)
-        cnf = ConfigParser.ConfigParser()
-        cnf.read(self.CREDFILE)
-        if not cnf.has_section("client"):
-            raise Exception("Missing section 'client' in '%s'" % self.CREDFILE)
-        for o in ("host", "port", "user"):
-            if not cnf.has_option("client", o):
-                raise Exception("Missing option '%s' in '%s'" % (o,self.CREDFILE))
-        self._host = cnf.get("client", "host")
-        self._port = cnf.get("client", "port")
-        self._user = cnf.get("client", "user")
-        if cnf.has_option("client", "password"):
-            self._pass = cnf.get("client", "password")
-        else:
-            self._pass = ''
 
     def testBasicHostPortConn(self):
         """
@@ -188,7 +180,6 @@ def main():
         datefmt='%m/%d/%Y %I:%M:%S', 
         level=logging.DEBUG)
 
-    TestDbRemote.CREDFILE = "~/.lsst.testRemote.my.cnf"
     credFile = os.path.expanduser(TestDbRemote.CREDFILE)
     if not os.path.isfile(credFile):
         print "Required file with credentials '%s' not found." % credFile

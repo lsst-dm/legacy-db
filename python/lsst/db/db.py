@@ -50,6 +50,8 @@ from time import sleep
 # related third-package library
 import MySQLdb
 
+# local
+
 
 ####################################################################################
 class DbException(Exception, object):
@@ -137,7 +139,7 @@ class Db(object):
     # Map of MySQLdb driver connect() keywords to mysql executable option names.
     # Note: 'read_default_group' is not supported, since it can cause
     # the MySQLdb driver and the mysql executable to connect differently.
-    _connectArgNameMap = {
+    connectArgToOptionMap = {
         'host':              'host',
         'user':              'user',
         'passwd':            'password',
@@ -150,7 +152,12 @@ class Db(object):
         'read_default_file': 'defaults-file',
         'charset':           'default-character-set',
         'local_infile':      'local-infile'
-    }
+        }
+    # Map of mysql executable option names to MySQLdb driver connect() keywords.
+    # Note: 'read_default_group' is not supported, since it can cause
+    # the MySQLdb driver and the mysql executable to connect differently.
+    optionToConnectArgMap = \
+        dict((v,k) for (k,v) in connectArgToOptionMap.iteritems())
 
     def __init__(self, **kwargs):
         """
@@ -207,12 +214,16 @@ class Db(object):
         self._sleepLen = self._kwargs.pop("sleepLen", 3)
         self._attemptMaxNo = 1 + self._kwargs.pop("maxRetryCount", 0)
         for k in self._kwargs:
-            if k not in self._connectArgNameMap:
+            if k not in self.connectArgToOptionMap:
                 raise DbException(DbException.INVALID_CONN_INFO, repr(k))
         # If a MySQL defaults file will be read, make sure to pull values from the
         # [mysql] group, just like the mysql executable does. The [client] group
         # will automatically be read.
         if "read_default_file" in self._kwargs:
+            f = os.path.expanduser(self._kwargs["read_default_file"])
+            self._kwargs["read_default_file"] = f
+            if not os.path.isfile(f):
+                raise DbException(DbException.INVALID_OPT_FILE, f)
             self._kwargs["read_default_group"] = "mysql"
         # MySQL will use socket for "localhost". 127.0.0.1 forces TCP.
         if self._kwargs.get("host", "") == "localhost":
@@ -582,8 +593,8 @@ class Db(object):
             # be first, or MySQL will complain "unknown option".
             mysqlArgs.append("--no-defaults")
         for k in connectArgs:
-            if k in self._connectArgNameMap:
-                s = "--%s=%s" % (self._connectArgNameMap[k], connectArgs[k])
+            if k in self.connectArgToOptionMap:
+                s = "--%s=%s" % (self.connectArgToOptionMap[k], connectArgs[k])
                 # MySQL gets confused unless this option is first
                 if k == "read_default_file":
                     mysqlArgs.insert(1, s)
