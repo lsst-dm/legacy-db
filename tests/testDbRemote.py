@@ -58,6 +58,8 @@ class TestDbRemote(unittest.TestCase):
                                   logging.getLogger("lsst.db.testDbRemote"))
         (self._host, self._port, self._user, self._pass) = \
             [dict[k] for k in ('host', 'port', 'user', 'passwd')]
+        if self._pass is None:
+            self._pass = ''
         self._dbA = "%s_dbWrapperTestDb_A" % self._user
         self._dbB = "%s_dbWrapperTestDb_B" % self._user
         self._dbC = "%s_dbWrapperTestDb_C" % self._user
