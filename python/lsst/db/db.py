@@ -197,6 +197,9 @@ class Db(object):
         # [mysql] group, just like the mysql executable does. The [client] group
         # will automatically be read.
         if "read_default_file" in self._kwargs:
+            if not os.path.isfile(self._kwargs["read_default_file"]):
+                raise DbException(DbException.INVALID_OPT_FILE, 
+                                  self._kwargs["read_default_file"])
             self._kwargs["read_default_group"] = "mysql"
         # MySQL will use socket for "localhost". 127.0.0.1 forces TCP.
         if self._kwargs.get("host", "") == "localhost":
