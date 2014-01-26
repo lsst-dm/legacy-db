@@ -59,7 +59,6 @@ def readCredentialFile(fName, logger):
         raise Exception("Missing section '%s' in '%s'" % (theSection, fName))
     for o in optNameToConnArgMap:
         if cnf.has_option(theSection, o):
-            logger.debug("'%s' --> '%s'" % (o, cnf.get(theSection, o)))
             theKey = optNameToConnArgMap.get(o, o)
             ret[theKey] = cnf.get(theSection, o)
     logger.info("fetched %s from '%s' (password not shown)" % (
