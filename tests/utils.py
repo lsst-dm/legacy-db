@@ -36,7 +36,7 @@ import os.path
 import sys
 
 # local
-from lsst.db.mysqlInternal import mysql_optionToConnectArgMap as optNameToConnArgMap
+from lsst.db.db import Db
 
 
 def readCredentialFile(fName, logger):
@@ -45,21 +45,25 @@ def readCredentialFile(fName, logger):
     containing these key/value pairs translated to names accepted by connect()
     as needed). Hint, to get a subset, do something like:
     dict = readCredentialFile(fN)
-    (hst, prt, usr, pwd) = [dict[k] for k in ('host', 'port', 'user', 'passwd')]
+    (hst, prt, usr, pwd) = [dict[k] for k in ('host', 'port', 'user', 'passwd')].
+    This function only reads from the [mysql] section, e.g., it is not full 
+    equivalent to how mysql command like utility which obtains the value from the
+    last occurrence of k in section [mysql] or [client] in the file.
     """
     ret = {}
-    theSection = "mysql"
     if fName.startswith('~'): 
         fName = os.path.expanduser(fName)
     if not os.path.isfile(fName):
         raise Exception("Required file '%s' not found" % fName)
     cnf = ConfigParser.ConfigParser()
     cnf.read(fName)
+
+    theSection = "mysql"
     if not cnf.has_section(theSection):
         raise Exception("Missing section '%s' in '%s'" % (theSection, fName))
-    for o in optNameToConnArgMap:
+    for o in Db.optionToConnectArgMap:
         if cnf.has_option(theSection, o):
-            theKey = optNameToConnArgMap.get(o, o)
+            theKey = Db.optionToConnectArgMap.get(o, o)
             ret[theKey] = cnf.get(theSection, o)
     logger.info("fetched %s from '%s' (password not shown)" % (
             str(["%s:%s" % (x, ret[x]) for x in ret if not x == "passwd"]), fName))

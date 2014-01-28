@@ -22,15 +22,18 @@
 
 """
 This is a unittest for the Db class, geared for testing local server connections.
-It is assumed user has all privileges.
 
-It requires ~/.lsst.testLocal.my.cnf config file with the following:
-[client]
-user     = <username>
-password = <password> # this can be ommitted if password is empty
+The test requires credential file ~/.lsst.testLocal.my.cnf config file with
+the following:
+[mysql]
+user     = <userName>
+passwd   = <passwd> # this is optional
 host     = localhost
-port     = <port>
-socket   = <socket>
+port     = 3306
+socket   = <path to the socket>
+
+User will need full mysql privileges.
+
 
 @author  Jacek Becla, SLAC
 
@@ -49,20 +52,11 @@ import unittest
 
 # local
 from lsst.db.db import Db, DbException
-from lsst.db.utils import readCredentialFile
+from utils import readCredentialFile
 
 
 class TestDbLocal(unittest.TestCase):
-    """
-    This test requires credential file with the following:
-[mysql]
-user     = <userName>
-passwd   = <passwd> # this is optional
-host     = localhost
-port     = 3306
-socket   = <path to the socket>
-    """
-    CREDFILE = None
+    CREDFILE = "~/.lsst.testLocal.my.cnf"
 
     def setUp(self):
         dict = readCredentialFile(self.CREDFILE,
@@ -482,7 +476,6 @@ def main():
         datefmt='%m/%d/%Y %I:%M:%S', 
         level=logging.DEBUG)
 
-    TestDbLocal.CREDFILE = "~/.lsst.testLocal.my.cnf"
     if TestDbLocal.CREDFILE.startswith('~'): 
         credFile = os.path.expanduser(TestDbLocal.CREDFILE)
     if not os.path.isfile(credFile):

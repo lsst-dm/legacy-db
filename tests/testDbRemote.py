@@ -22,14 +22,16 @@
 
 """
 This is a unittest for the Db class, geared for testing remote server connections.
-It is sufficient if the user has normal privileges.
 
-It requires ~/.lsst.testRemote.my.cnf config file with the following:
-[client]
+The test requires ~/.lsst.testRemote.my.cnf config file with the following:
+[mysql]
 user     = <username>
-password = <password> # this can be ommitted if password is empty
+passwd = <passwd> # this is optional
 host     = <host>
 port     = <port>
+
+It is sufficient if the user has normal privileges.
+
 
 @author  Jacek Becla, SLAC
 
@@ -47,11 +49,11 @@ import unittest
 
 # local
 from lsst.db.db import Db, DbException
-from lsst.db.utils import readCredentialFile
+from utils import readCredentialFile
 
 
 class TestDbRemote(unittest.TestCase):
-    CREDFILE = None
+    CREDFILE = "~/.lsst.testRemote.my.cnf"
 
     def setUp(self):
         dict = readCredentialFile(self.CREDFILE, 
@@ -178,7 +180,6 @@ def main():
         datefmt='%m/%d/%Y %I:%M:%S', 
         level=logging.DEBUG)
 
-    TestDbRemote.CREDFILE = "~/.lsst.testRemote.my.cnf"
     credFile = os.path.expanduser(TestDbRemote.CREDFILE)
     if not os.path.isfile(credFile):
         print "Required file with credentials '%s' not found." % credFile
