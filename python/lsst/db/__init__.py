@@ -1,1 +1,4 @@
-from .version import *
+try:
+    from .version import *
+except:
+    pass
