@@ -34,7 +34,7 @@ Known issues:
  * need to integrate logging into lsst-stack logging
 """
 
-# standard library
+# standard library imports
 import ConfigParser
 import contextlib
 import copy
@@ -47,48 +47,13 @@ import warnings
 from datetime import datetime
 from time import sleep
 
-# related third-package library
+# related third-package library imports
 import MySQLdb
 
-# local
-
+# local imports
+from lsst.db.exception import DbException, _defineErr
 
 ####################################################################################
-class DbException(Exception, object):
-    """
-    Database-specific exception class.
-    """
-    _errorMessages = {}
-
-    def __init__(self, errCode, *messages):
-        """
-        Create a DbException from an integer error code and an arbitrary number of 
-        ancillary messages.
-
-        @param errCode    Error code.
-        @param messages   Optional list of ancillary messages.
-        """
-        self._errCode = errCode
-        self._messages = messages
-
-    def __str__(self):
-        msg = DbException._errorMessages.get(self.errCode) or (
-            "Unrecognized database error: %r" % self.errorCode)
-        if self.messages:
-            msg = msg + " (" + "), (".join(self.messages) + ")"
-        return msg
-
-    @property
-    def errCode(self):
-        return self._errCode
-
-    @property
-    def messages(self):
-    	return self._messages
-
-def _defineErr(errCode, errName, errMsg):
-    setattr(DbException, errName, errCode)
-    DbException._errorMessages[errCode] = errMsg
 
 _defineErr(1500, "CANT_CONNECT_TO_DB", "Can't connect to database.")
 _defineErr(1505, "CANT_EXEC_SCRIPT",   "Can't execute script.")
