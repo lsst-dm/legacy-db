@@ -462,8 +462,8 @@ class TestDbLocal(unittest.TestCase):
         try:
             db.execCommand0("LOAD DATA LOCAL INFILE '%s' INTO TABLE t1" % fN)
         except DbException as e:
-            print "Caught: #%s" % e.errCode, e
-            assert(e.errCode == DbException.SERVER_WARNING)
+            print "Caught: #%s" % e.errCode(), e
+            assert(e.errCode() == DbException.SERVER_WARNING)
 
         db.dropDb(self._dbA)
         db.disconnect()

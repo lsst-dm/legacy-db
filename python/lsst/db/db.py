@@ -51,27 +51,28 @@ from time import sleep
 import MySQLdb
 
 # local imports
-from lsst.db.exception import DbException, _defineErr
+from lsst.db.exception import produceExceptionClass
 
 ####################################################################################
 
-_defineErr(1500, "CANT_CONNECT_TO_DB", "Can't connect to database.")
-_defineErr(1505, "CANT_EXEC_SCRIPT",   "Can't execute script.")
-_defineErr(1510, "DB_EXISTS",          "Database already exists.")
-_defineErr(1515, "DB_DOES_NOT_EXIST",  "Database does not exist.")
-_defineErr(1520, "INVALID_CONN_INFO",  "Invalid connection parameter.") 
-_defineErr(1525, "INVALID_DB_NAME",    "Invalid database name.")
-_defineErr(1530, "INVALID_OPT_FILE",   "Can't open the option file.")
-_defineErr(1532, "PASSWD_NOT_ALLOWED", "Password disallowed, use option file.")
-_defineErr(1535, "SERVER_CONNECT",     "Unable to connect to server.")
-_defineErr(1540, "SERVER_DISCONN",     "Failed to disconnect from db server.")
-_defineErr(1545, "SERVER_ERROR",       "Internal db server error.")
-_defineErr(1550, "NO_DB_SELECTED",     "No database selected.")
-_defineErr(1555, "NOT_CONNECTED",      "Not connected to the db server.")
-_defineErr(1560, "TB_DOES_NOT_EXIST",  "Table does not exist.")
-_defineErr(1565, "TB_EXISTS",          "Table already exists.")
-_defineErr(1900, "SERVER_WARNING",     "Warning.")
-_defineErr(9999, "INTERNAL",           "Internal error.")
+DbException = produceExceptionClass('DbException', [
+        (1500, "CANT_CONNECT_TO_DB", "Can't connect to database."),
+        (1505, "CANT_EXEC_SCRIPT",   "Can't execute script."),
+        (1510, "DB_EXISTS",          "Database already exists."),
+        (1515, "DB_DOES_NOT_EXIST",  "Database does not exist."),
+        (1520, "INVALID_CONN_INFO",  "Invalid connection parameter.") ,
+        (1525, "INVALID_DB_NAME",    "Invalid database name."),
+        (1530, "INVALID_OPT_FILE",   "Can't open the option file."),
+        (1532, "PASSWD_NOT_ALLOWED", "Password disallowed, use option file."),
+        (1535, "SERVER_CONNECT",     "Unable to connect to server."),
+        (1540, "SERVER_DISCONN",     "Failed to disconnect from db server."),
+        (1545, "SERVER_ERROR",       "Internal db server error."),
+        (1550, "NO_DB_SELECTED",     "No database selected."),
+        (1555, "NOT_CONNECTED",      "Not connected to the db server."),
+        (1560, "TB_DOES_NOT_EXIST",  "Table does not exist."),
+        (1565, "TB_EXISTS",          "Table already exists."),
+        (1900, "SERVER_WARNING",     "Warning."),
+        (9999, "INTERNAL",           "Internal error.")])
 
 ####################################################################################
 class Db(object):
@@ -316,7 +317,7 @@ class Db(object):
         try:
             self.execCommand0("CREATE DATABASE `%s`" % dbName)
         except DbException as e:
-            if e.errCode == DbException.DB_EXISTS and mayExist:
+            if e.errCode() == DbException.DB_EXISTS and mayExist:
                 self._logger.debug("create db failed, mayExist is True")
                 pass
             else:
@@ -358,7 +359,7 @@ class Db(object):
         try:
             self.execCommand0("DROP DATABASE `%s`" % dbName)
         except DbException as e:
-            if e.errCode == DbException.DB_DOES_NOT_EXIST and not mustExist:
+            if e.errCode() == DbException.DB_DOES_NOT_EXIST and not mustExist:
                 self._logger.debug("dropDb failed, mustExist is False")
             else:
                 raise
@@ -399,7 +400,7 @@ class Db(object):
             self.execCommand0("CREATE TABLE %s`%s` %s" % \
                                   (dbNameStr, tableName, tableSchema))
         except  DbException as e:
-            if e.errCode == DbException.TB_EXISTS and mayExist:
+            if e.errCode() == DbException.TB_EXISTS and mayExist:
                 self._logger.debug("create table failed, mayExist is True")
             else:
                 raise
@@ -420,7 +421,7 @@ class Db(object):
         try:
             self.execCommand0("DROP TABLE %s`%s`" % (dbNameStr, tableName))
         except DbException as e:
-            if e.errCode == DbException.TB_DOES_NOT_EXIST and not mustExist:
+            if e.errCode() == DbException.TB_DOES_NOT_EXIST and not mustExist:
                 self._logger.debug("dropTable failed, mustExist is False")
             else:
                 raise

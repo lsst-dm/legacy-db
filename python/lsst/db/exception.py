@@ -21,8 +21,8 @@
 # see <http://www.lsstcorp.org/LegalNotices/>.
 
 """
-This module defines an exception class from an integer and arbitrary number of
-ancillary messages.
+This module defines a function that produces an exception class from an integer and
+arbitrary number of ancillary messages.
 
 @author  Jacek Becla, SLAC
 
@@ -30,41 +30,40 @@ Known issues:
  * None
 """
 
+def _myEx_init(self, errCode, *messages):
+    self._errCode = errCode
+    self._messages = messages
 
-####################################################################################
-class DbException(Exception, object):
+def _myEx_str(self):
+     msg = self._errorMessages.get(self._errCode) or (
+            "Unrecognized error: %r" % self._errorCode)
+     if self._messages:
+         msg = msg + " (" + "), (".join(self._messages) + ")"
+     return msg
+
+def _myEx_errCode(self):
+    return self._errCode
+
+def _myEx_messages(self):
+    return self._messages
+
+def produceExceptionClass(theName, theList):
     """
-    Database-specific exception class.
+    Produce exception class.
+
+    @param theName   Name of the class
+    @param theList   List of (error code, error code symbolic name, error message)
+                     tuples
     """
-    _errorMessages = {}
-
-    def __init__(self, errCode, *messages):
-        """
-        Create a DbException from an integer error code and an arbitrary number of 
-        ancillary messages.
-
-        @param errCode    Error code.
-        @param messages   Optional list of ancillary messages.
-        """
-        self._errCode = errCode
-        self._messages = messages
-
-    def __str__(self):
-        msg = DbException._errorMessages.get(self.errCode) or (
-            "Unrecognized error: %r" % self.errorCode)
-        if self.messages:
-            msg = msg + " (" + "), (".join(self.messages) + ")"
-        return msg
-
-    @property
-    def errCode(self):
-        return self._errCode
-
-    @property
-    def messages(self):
-    	return self._messages
-
-####################################################################################
-def _defineErr(errCode, errName, errMsg):
-    setattr(DbException, errName, errCode)
-    DbException._errorMessages[errCode] = errMsg
+    TheException = type(theName, 
+                        (Exception, object,), 
+                        dict(_errorMessages = {},
+                             __init__ = _myEx_init,
+                             __str__  = _myEx_str,
+                             errCode  = _myEx_errCode,
+                             messages = _myEx_messages))
+    for x in theList:
+        (errCode, errName, errMsg) = x
+        setattr(TheException, errName, errCode)
+        TheException._errorMessages[errCode] = errMsg
+    return TheException
