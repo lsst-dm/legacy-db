@@ -36,7 +36,7 @@ def _myEx_init(self, errCode, *messages):
 
 def _myEx_str(self):
      msg = self._errorMessages.get(self._errCode) or (
-            "Unrecognized error: %r" % self._errorCode)
+            "Unrecognized error: %r" % self._errCode)
      if self._messages:
          msg = msg + " (" + "), (".join(self._messages) + ")"
      return msg
