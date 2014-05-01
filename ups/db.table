@@ -1,5 +1,6 @@
 setupRequired(python)
 setupRequired(mysqlclient)
 setupRequired(mysqlpython)
+setupRequired(sconsUtils)
 
 envAppend(PYTHONPATH, ${PRODUCT_DIR}/python)
