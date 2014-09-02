@@ -1,5 +1,5 @@
 setupRequired(python)
-setupRequired(mysql)
+setupRequired(mysqlclient)
 setupRequired(mysqlpython)
 setupRequired(sconsUtils)
 
