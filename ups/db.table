@@ -3,4 +3,4 @@ setupRequired(mysqlclient)
 setupRequired(mysqlpython)
 setupRequired(sconsUtils)
 
-envPrepend(PYTHONPATH, ${PRODUCT_DIR}/python)
+envAppend(PYTHONPATH, ${PRODUCT_DIR}/python)
