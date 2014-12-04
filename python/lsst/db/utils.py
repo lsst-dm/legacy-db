@@ -51,7 +51,7 @@ def readCredentialFile(fName, logger):
     last occurrence of k in section [mysql] or [client] in the file.
     """
     ret = {}
-    if fName.startswith('~'): 
+    if fName.startswith('~'):
         fName = os.path.expanduser(fName)
     if not os.path.isfile(fName):
         raise Exception("Required file '%s' not found" % fName)
