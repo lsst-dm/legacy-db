@@ -35,7 +35,8 @@ import os
 import tempfile
 import time
 import unittest
-from utils import readCredentialFile
+
+from lsst.db.utils import readCredentialFile
 
 class TestUtils(unittest.TestCase):
     def testReadCredF(self):
