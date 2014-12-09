@@ -31,7 +31,6 @@ the Db wrapper.
 
 # standard library
 import ConfigParser
-import logging
 import os.path
 import sys
 

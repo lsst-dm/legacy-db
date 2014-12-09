@@ -2,7 +2,7 @@
 
 # LSST Data Management System
 # Copyright 2014 LSST Corporation.
-# 
+#
 # This product includes software developed by the
 # LSST Project (http://www.lsst.org/).
 #
@@ -10,14 +10,14 @@
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
-# 
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
-# You should have received a copy of the LSST License Statement and 
-# the GNU General Public License along with this program.  If not, 
+#
+# You should have received a copy of the LSST License Statement and
+# the GNU General Public License along with this program.  If not,
 # see <http://www.lsstcorp.org/LegalNotices/>.
 
 """
@@ -30,13 +30,14 @@ Known issues and todos:
 """
 
 import ConfigParser
-import logging
 import os
 import tempfile
 import time
 import unittest
 
+import lsst.log as log
 from lsst.db.utils import readCredentialFile
+
 
 class TestUtils(unittest.TestCase):
     def testReadCredF(self):
@@ -51,7 +52,7 @@ password = 123a
 socket = /tmp/my/socket.sock
 """)
         f.close()
-        dict = readCredentialFile(fN, logging.getLogger("lsst.db.testDbLocal"))
+        dict = readCredentialFile(fN, log)
         assert(dict["host"] == "localhost")
         assert(dict["port"] == "3455")
         assert(dict["user"] == "dummyX")
@@ -61,11 +62,6 @@ socket = /tmp/my/socket.sock
 
 ####################################################################################
 def main():
-    logging.basicConfig(
-        format='%(asctime)s %(name)s %(levelname)s: %(message)s', 
-        datefmt='%m/%d/%Y %I:%M:%S', 
-        level=logging.DEBUG)
-
     unittest.main()
 
 if __name__ == "__main__":
