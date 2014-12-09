@@ -52,7 +52,7 @@ import unittest
 
 # local
 from lsst.db.db import Db, DbException
-from utils import readCredentialFile
+from lsst.db.utils import readCredentialFile
 
 
 class TestDbLocal(unittest.TestCase):
