@@ -274,6 +274,7 @@ class Db(object):
         if self._conn is None:
             return
         try:
+            self._conn.commit()
             self._conn.close()
         except:
             pass
