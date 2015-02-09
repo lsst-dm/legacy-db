@@ -427,6 +427,15 @@ class Db(object):
             else:
                 raise
 
+    def listTables(self, dbName):
+        """
+        Return list of tables in a given database.
+        """
+        cmd = "SELECT TABLE_NAME FROM information_schema.TABLES "
+        cmd += "WHERE TABLE_SCHEMA='%s'" % dbName
+        rows = self.execCommandN(cmd)
+        return [x[0] for x in rows]
+
     def isView(self, tableName, dbName=None):
         """
         Return True if the table <tableName> is a view, False otherwise.
