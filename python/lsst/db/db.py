@@ -471,44 +471,48 @@ class Db(object):
         return s.getvalue()
 
     #### Executing command related functions #######################################
-    def execCommand0(self, command):
+    def execCommand0(self, command, optParams=None):
         """
         Execute SQL command and discard any result.
 
         @param command    SQL command that returns no rows.
+        @param optParams  Optional parameters to bind to the query.
         """
-        self._execCommand(command, 0)
+        self._execCommand(command, 0, optParams)
 
-    def execCommand1(self, command):
+    def execCommand1(self, command, optParams=None):
         """
         Execute SQL command that returns a single row (a sequence of column values),
         or None if the statemetn returned no results.
 
         @param command    SQL command that returns one row.
+        @param optParams  Optional parameters to bind to the query.
 
         @return string    Result.
         """
-        return self._execCommand(command, 1)
+        return self._execCommand(command, 1, optParams)
 
-    def execCommandN(self, command):
+    def execCommandN(self, command, optParams=None):
         """
         Execute SQL command that returns a sequence of all statement result rows,
         which are themselves sequences of column values.
 
         @param command    SQL command. that returns more than one row.
+        @param optParams  Optional parameters to bind to the query.
 
         @return string    Result.
         """
-        return self._execCommand(command, 'n')
+        return self._execCommand(command, 'n', optParams)
 
-    def _execCommand(self, command, nRowsRet):
+    def _execCommand(self, command, nRowsRet, optParams=None):
         """
         Execute SQL command which return any number of rows.
 
         @param command    SQL command.
         @param nRowsRet   Expected number of returned rows (valid: '0', '1', 'n').
+        @param optParams  Optional parameters to bind to the query.
 
-        @return string Results from the query. Empty string if not results.
+        @return string Results from the query. Empty string if no results.
 
         Establish connection if it hasn't been established, but do not attempt to
         recover from any failures -- this is left up to user.
@@ -518,7 +522,10 @@ class Db(object):
         with contextlib.closing(self._conn.cursor()) as cursor:
             log.debug("Executing '%s'.", command)
             try:
-                cursor.execute(command)
+                if optParams:
+                    cursor.execute(command, optParams)
+                else:
+                    cursor.execute(command)
             except:
                 self._handleException(sys.exc_info()[1])
             if nRowsRet == 0:
