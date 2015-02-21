@@ -44,13 +44,13 @@ Known issues and todos:
 
 # standard library
 import ConfigParser
-import logging
 import os
 import tempfile
 import time
 import unittest
 
 # local
+import lsst.log as log
 from lsst.db.db import Db, DbException
 from lsst.db.utils import readCredentialFile
 
@@ -59,8 +59,7 @@ class TestDbLocal(unittest.TestCase):
     CREDFILE = "~/.lsst/dbAuth-testLocal.txt"
 
     def setUp(self):
-        dict = readCredentialFile(self.CREDFILE,
-                                  logging.getLogger("lsst.db.testDbLocal"))
+        dict = readCredentialFile(self.CREDFILE, log)
         (self._sock, self._host, self._port, self._user, self._pass) = \
            [dict.get(k, None) for k in (
                 'unix_socket', 'host', 'port', 'user', 'passwd')]
@@ -471,10 +470,7 @@ class TestDbLocal(unittest.TestCase):
 
 ####################################################################################
 def main():
-    logging.basicConfig(
-        format='%(asctime)s %(name)s %(levelname)s: %(message)s',
-        datefmt='%m/%d/%Y %I:%M:%S',
-        level=logging.DEBUG)
+    log.configure()
 
     if TestDbLocal.CREDFILE.startswith('~'):
         credFile = os.path.expanduser(TestDbLocal.CREDFILE)

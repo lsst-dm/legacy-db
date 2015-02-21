@@ -41,13 +41,13 @@ Known issues and todos:
 
 # standard library
 import ConfigParser
-import logging
 import os
 import tempfile
 import time
 import unittest
 
 # local
+import lsst.log as log
 from lsst.db.db import Db, DbException
 from lsst.db.utils import readCredentialFile
 
@@ -56,8 +56,7 @@ class TestDbRemote(unittest.TestCase):
     CREDFILE = "~/.lsst/dbAuth-testRemote.txt"
 
     def setUp(self):
-        dict = readCredentialFile(self.CREDFILE,
-                                  logging.getLogger("lsst.db.testDbRemote"))
+        dict = readCredentialFile(self.CREDFILE, log)
         (self._host, self._port, self._user, self._pass) = \
             [dict[k] for k in ('host', 'port', 'user', 'passwd')]
         if self._pass is None:
@@ -175,10 +174,7 @@ class TestDbRemote(unittest.TestCase):
 
 ####################################################################################
 def main():
-    logging.basicConfig(
-        format='%(asctime)s %(name)s %(levelname)s: %(message)s',
-        datefmt='%m/%d/%Y %I:%M:%S',
-        level=logging.DEBUG)
+    log.configure()
 
     credFile = os.path.expanduser(TestDbRemote.CREDFILE)
     if not os.path.isfile(credFile):

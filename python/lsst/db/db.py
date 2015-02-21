@@ -31,14 +31,12 @@ Known issues:
  * execCommandN: what if I have a huge number of rows? It'd be nice to also have
    a way to iterate over results without materializing them all in client memory
    (perhaps via a generator).
- * need to integrate logging into lsst-stack logging
 """
 
 # standard library imports
 import ConfigParser
 import contextlib
 import copy
-import logging
 import os.path
 import StringIO
 import subprocess
@@ -51,6 +49,7 @@ from time import sleep
 import MySQLdb
 
 # local imports
+import lsst.log as log
 from lsst.db.exception import produceExceptionClass
 
 ####################################################################################
@@ -175,7 +174,6 @@ class Db(object):
         "localhost" is used.
         """
         self._conn = None
-        self._logger = logging.getLogger("lsst.db.Db")
         self._kwargs = copy.deepcopy(kwargs)
         self._sleepLen = self._kwargs.pop("sleepLen", 3)
         self._attemptMaxNo = 1 + self._kwargs.pop("maxRetryCount", 0)
@@ -194,16 +192,16 @@ class Db(object):
         # MySQL will use socket for "localhost". 127.0.0.1 forces TCP.
         if self._kwargs.get("host", "") == "localhost":
             self._kwargs["host"] = "127.0.0.1"
-            self._logger.warning('"localhost" specified, switching to 127.0.0.1')
+            log.warning('"localhost" specified, switching to 127.0.0.1')
         if "port" in self._kwargs:
             self._kwargs["port"] = int(self._kwargs["port"])
         # Map MySQL warnings to exceptions
         warnings.filterwarnings("error", category=MySQLdb.Warning)
         # Log the connection parameters
-        self._logger.info("Created lsst.db.Db with connection parameters " + \
-                          "(password not shown): %s" % \
-                              str(["%s:%s" % (x, self._kwargs[x]) \
-                                   for x in self._kwargs if not x == "passwd"]))
+        log.info("Created lsst.db.Db with connection parameters " + \
+                 "(password not shown): %s", \
+                 str(["%s:%s" % (x, self._kwargs[x]) \
+                      for x in self._kwargs if not x == "passwd"]))
 
     def __del__(self):
         """
@@ -219,11 +217,11 @@ class Db(object):
         if self._conn is None:
             return False
         try:
-            self._logger.info("Pinging server")
+            log.info("Pinging server")
             self._conn.ping()
         except MySQLdb.OperationalError as e:
             if self._isConnectionError(e.args[0]):
-                self._logger.debug("Ping failed with error %d: %s" % error.args[:2])
+                log.debug("Ping failed with error %d: %s", error.args[:2])
                 self._conn = None
                 return False
             raise
@@ -237,7 +235,7 @@ class Db(object):
             self._doConnect()
         if dbName is not None:
             try:
-                self._logger.info("Selecting db %s." % dbName)
+                log.info("Selecting db %s.", dbName)
                 self._conn.select_db(dbName)
             except:
                 self._handleException(sys.exc_info()[1])
@@ -245,19 +243,18 @@ class Db(object):
     def _doConnect(self):
         n = 1
         while True:
-            self._logger.info("Connecting (attempt %d of %d)" %
-                              (n, self._attemptMaxNo))
+            log.info("Connecting (attempt %d of %d)", n, self._attemptMaxNo)
             try:
-                self._logger.debug("mysql.connect.")
+                log.debug("mysql.connect.")
                 self._conn = MySQLdb.connect(**self._kwargs)
                 return
             except MySQLdb.Error as e:
                 msg = "MySQL error %d: %s" % e.args[:2]
-                self._logger.error(msg)
+                log.error(msg)
                 if (n >= self._attemptMaxNo or
                     not self._isConnectionError(e.args[0])):
                     errCode = self._getErrCode(e.args[0])
-                    self._logger.error("Can't recover, sorry")
+                    log.error("Can't recover, sorry")
                     raise DbException(errCode, msg)
                 # try again
                 n += 1
@@ -270,7 +267,7 @@ class Db(object):
         """
         Disconnect from the server.
         """
-        self._logger.info("closing connection")
+        log.info("closing connection")
         if self._conn is None:
             return
         try:
@@ -291,9 +288,9 @@ class Db(object):
             msg = "MySQL warning %s" % e.message
             errCode = DbException.SERVER_WARNING
         else:
-            self._logger.error("Unexpected exception: %s" % e)
+            log.error("Unexpected exception: %s", e)
             raise e
-        self._logger.error(msg)
+        log.error(msg)
         raise DbException(errCode, msg)
 
     def _getErrCode(self, mysqlErrCode):
@@ -319,7 +316,7 @@ class Db(object):
             self.execCommand0("CREATE DATABASE `%s`" % dbName)
         except DbException as e:
             if e.errCode() == DbException.DB_EXISTS and mayExist:
-                self._logger.debug("create db failed, mayExist is True")
+                log.debug("create db failed, mayExist is True")
                 pass
             else:
                 raise
@@ -361,7 +358,7 @@ class Db(object):
             self.execCommand0("DROP DATABASE `%s`" % dbName)
         except DbException as e:
             if e.errCode() == DbException.DB_DOES_NOT_EXIST and not mustExist:
-                self._logger.debug("dropDb failed, mustExist is False")
+                log.debug("dropDb failed, mustExist is False")
             else:
                 raise
 
@@ -402,7 +399,7 @@ class Db(object):
                               (dbNameStr, tableName, tableSchema))
         except  DbException as e:
             if e.errCode() == DbException.TB_EXISTS and mayExist:
-                self._logger.debug("create table failed, mayExist is True")
+                log.debug("create table failed, mayExist is True")
             else:
                 raise
 
@@ -423,7 +420,7 @@ class Db(object):
             self.execCommand0("DROP TABLE %s`%s`" % (dbNameStr, tableName))
         except DbException as e:
             if e.errCode() == DbException.TB_DOES_NOT_EXIST and not mustExist:
-                self._logger.debug("dropTable failed, mustExist is False")
+                log.debug("dropTable failed, mustExist is False")
             else:
                 raise
 
@@ -519,7 +516,7 @@ class Db(object):
         if self._conn is None:
             self.connect()
         with contextlib.closing(self._conn.cursor()) as cursor:
-            self._logger.debug("Executing '%s'." % command)
+            log.debug("Executing '%s'.", command)
             try:
                 cursor.execute(command)
             except:
@@ -528,10 +525,10 @@ class Db(object):
                 ret = None
             elif nRowsRet == 1:
                 ret = cursor.fetchone()
-                self._logger.debug("Got: %s" % str(ret))
+                log.debug("Got: %s", str(ret))
             else:
                 ret = cursor.fetchall()
-                self._logger.debug("Got: %s" % str(ret))
+                log.debug("Got: %s", str(ret))
             return ret
 
     #### All others ################################################################
@@ -577,8 +574,8 @@ class Db(object):
                 else:
                     mysqlArgs.append(s)
         dbInfo = " into db '%s'." % dbName if dbName is not None else ""
-        self._logger.info("Loading script %s%s. Args are: %s" % \
-                              (scriptPath, dbInfo, str(mysqlArgs)))
+        log.info("Loading script %s%s. Args are: %s",
+                 scriptPath, dbInfo, str(mysqlArgs))
         with file(scriptPath) as scriptFile:
             if subprocess.call(mysqlArgs, stdin=scriptFile) != 0:
                 msg = "Failed to execute %s < %s" % (connectArgs, scriptPath)
