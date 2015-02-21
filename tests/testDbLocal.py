@@ -476,7 +476,8 @@ def main():
         datefmt='%m/%d/%Y %I:%M:%S',
         level=logging.DEBUG)
 
-    credFile = os.path.expanduser(TestDbLocal.CREDFILE)
+    if TestDbLocal.CREDFILE.startswith('~'):
+        credFile = os.path.expanduser(TestDbLocal.CREDFILE)
     if not os.path.isfile(credFile):
         logging.warning("Required file with credentials '%s' not found." % credFile)
     else:
