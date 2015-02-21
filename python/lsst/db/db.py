@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 # LSST Data Management System
-# Copyright 2008-2014 LSST Corporation.
-# 
+# Copyright 2008-2015 LSST Corporation.
+#
 # This product includes software developed by the
 # LSST Project (http://www.lsst.org/).
 #
@@ -10,14 +10,14 @@
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
-# 
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
-# You should have received a copy of the LSST License Statement and 
-# the GNU General Public License along with this program.  If not, 
+#
+# You should have received a copy of the LSST License Statement and
+# the GNU General Public License along with this program.  If not,
 # see <http://www.lsstcorp.org/LegalNotices/>.
 
 """
@@ -28,7 +28,7 @@ handles database errors.
 @author  Jacek Becla, SLAC
 
 Known issues:
- * execCommandN: what if I have a huge number of rows? It'd be nice to also have 
+ * execCommandN: what if I have a huge number of rows? It'd be nice to also have
    a way to iterate over results without materializing them all in client memory
    (perhaps via a generator).
  * need to integrate logging into lsst-stack logging
@@ -83,7 +83,7 @@ class Db(object):
     lost connection. It also implements some useful functions, like creating
     databases/tables. Connection is done either through host/port or socket (at
     least one of these must be provided). Password can be empty. If it can't
-    connect, it will retry (and sleep). Public functions do not have to call 
+    connect, it will retry (and sleep). Public functions do not have to call
     "connect()" - ff connection is needed and is not ready, the functions will
     establish it first.
     """
@@ -254,7 +254,7 @@ class Db(object):
             except MySQLdb.Error as e:
                 msg = "MySQL error %d: %s" % e.args[:2]
                 self._logger.error(msg)
-                if (n >= self._attemptMaxNo or 
+                if (n >= self._attemptMaxNo or
                     not self._isConnectionError(e.args[0])):
                     errCode = self._getErrCode(e.args[0])
                     self._logger.error("Can't recover, sorry")
@@ -313,7 +313,7 @@ class Db(object):
         Raise exception if the database already exists and mayExist is False.
         Note, it will not connect to that database and it will not make it default.
         """
-        if dbName is None: 
+        if dbName is None:
             raise DbException(DbException.INVALID_DB_NAME, "<None>")
         try:
             self.execCommand0("CREATE DATABASE `%s`" % dbName)
@@ -408,7 +408,7 @@ class Db(object):
 
     def dropTable(self, tableName, dbName=None, mustExist=True):
         """
-        Drop table <tableName> in database <dbName>. 
+        Drop table <tableName> in database <dbName>.
 
         @param tableName  Table name.
         @param dbName     Database name.
@@ -467,7 +467,7 @@ class Db(object):
         s.write(tableName)
         if len(ret) == 0:
             s.write(" is empty.\n")
-        else: 
+        else:
             s.write(':\n')
         for r in ret:
             print >> s, "   ", r
