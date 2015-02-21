@@ -23,7 +23,7 @@
 """
 This is a unittest for the Db class, geared for testing local server connections.
 
-The test requires credential file ~/.lsst.testLocal.my.cnf config file with
+The test requires credential file ~/.lsst/dbAuth-testLocal.txt config file with
 the following:
 [mysql]
 user     = <userName>
@@ -56,7 +56,7 @@ from lsst.db.utils import readCredentialFile
 
 
 class TestDbLocal(unittest.TestCase):
-    CREDFILE = "~/.lsst.testLocal.my.cnf"
+    CREDFILE = "~/.lsst/dbAuth-testLocal.txt"
 
     def setUp(self):
         dict = readCredentialFile(self.CREDFILE,

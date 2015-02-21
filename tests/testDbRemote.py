@@ -23,7 +23,7 @@
 """
 This is a unittest for the Db class, geared for testing remote server connections.
 
-The test requires ~/.lsst.testRemote.my.cnf config file with the following:
+The test requires ~/.lsst/dbAuth-testRemote.txt config file with the following:
 [mysql]
 user     = <username>
 passwd = <passwd> # this is optional
@@ -53,7 +53,7 @@ from lsst.db.utils import readCredentialFile
 
 
 class TestDbRemote(unittest.TestCase):
-    CREDFILE = "~/.lsst.testRemote.my.cnf"
+    CREDFILE = "~/.lsst/dbAuth-testRemote.txt"
 
     def setUp(self):
         dict = readCredentialFile(self.CREDFILE,
