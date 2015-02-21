@@ -353,7 +353,7 @@ class Db(object):
         @param dbName     Database name.
         @param mustExist  Flag indicating what to do if the database does not exist.
 
-        Raise exception if the database does not exists and the flag mustExist is
+        Raise exception if the database does not exist and the flag mustExist is
         not set to False. Disconnect from the database if it is the current
         database.
         """
@@ -399,7 +399,7 @@ class Db(object):
         dbNameStr = "`%s`." % dbName if dbName is not None else ""
         try:
             self.execCommand0("CREATE TABLE %s`%s` %s" % \
-                                  (dbNameStr, tableName, tableSchema))
+                              (dbNameStr, tableName, tableSchema))
         except  DbException as e:
             if e.errCode() == DbException.TB_EXISTS and mayExist:
                 self._logger.debug("create table failed, mayExist is True")
