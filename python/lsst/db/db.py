@@ -267,9 +267,9 @@ class Db(object):
         """
         Disconnect from the server.
         """
-        log.info("closing connection")
         if self._conn is None:
             return
+        log.info("closing connection")
         try:
             self._conn.commit()
             self._conn.close()
