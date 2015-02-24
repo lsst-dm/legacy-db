@@ -1,3 +1,4 @@
+setupRequired(log)
 setupRequired(python)
 setupRequired(mysqlclient)
 setupRequired(mysqlpython)
