@@ -2,7 +2,7 @@
 
 # LSST Data Management System
 # Copyright 2013-2015 LSST Corporation.
-# 
+#
 # This product includes software developed by the
 # LSST Project (http://www.lsst.org/).
 #
@@ -10,14 +10,14 @@
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
-# 
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
-# You should have received a copy of the LSST License Statement and 
-# the GNU General Public License along with this program.  If not, 
+#
+# You should have received a copy of the LSST License Statement and
+# the GNU General Public License along with this program.  If not,
 # see <http://www.lsstcorp.org/LegalNotices/>.
 
 """
@@ -82,7 +82,7 @@ class TestDbLocal(unittest.TestCase):
         Basic test: connect through port, create db and connect to it, create one
         table, drop the db, disconnect.
         """
-        db = Db(user=self._user, passwd=self._pass, 
+        db = Db(user=self._user, passwd=self._pass,
                 host=self._host, port=self._port)
         db.createDb(self._dbA)
         db.useDb(self._dbA)
@@ -122,37 +122,37 @@ class TestDbLocal(unittest.TestCase):
         db.dropDb(self._dbB)
 
     def testConn_invalidHost(self):
-        db = Db(user=self._user, passwd=self._pass, 
+        db = Db(user=self._user, passwd=self._pass,
                 host="invalidHost", port=self._port)
         self.assertRaises(DbException, db.connect)
 
     def testConn_invalidHost(self):
-        db = Db(user=self._user, passwd=self._pass, 
+        db = Db(user=self._user, passwd=self._pass,
                 host="dummyHost", port=3036)
         self.assertRaises(DbException, db.connect)
 
     def testConn_invalidPortNo(self):
-        db = Db(user=self._user, passwd=self._pass, 
+        db = Db(user=self._user, passwd=self._pass,
                 host=self._host,port=987654)
         self.assertRaises(DbException, db.connect)
 
     def testConn_wrongPortNo(self):
-        db = Db(user=self._user, passwd=self._pass, host=self._host, port=1579, 
+        db = Db(user=self._user, passwd=self._pass, host=self._host, port=1579,
                 sleepLen=0, maxRetryCount=10)
         self.assertRaises(DbException, db.connect)
 
     def testConn_invalidUserName(self):
         db = Db(user="hackr", passwd='x', host=self._host, port=self._port)
-        # Disabling because this can work, depending on MySQL 
+        # Disabling because this can work, depending on MySQL
         # configuration, for example, it can default to ''@localhost
         # self.assertRaises(DbException, db.connect)
         db = Db(user=self._user, passwd="!MyPw", host=self._host, port=self._port)
         # self.assertRaises(DbException, db.connect)
 
     def testConn_invalidSocket(self):
-        # make sure retry is disabled, otherwise it wil try to reconnect 
+        # make sure retry is disabled, otherwise it wil try to reconnect
         # (it will assume the server is down and socket valid).
-        db = Db(user=self._user, passwd=self._pass, 
+        db = Db(user=self._user, passwd=self._pass,
                 unix_socket="/x/sock", maxRetryCount=0)
         self.assertRaises(DbException, db.connect)
 
@@ -160,19 +160,19 @@ class TestDbLocal(unittest.TestCase):
         # invalid host, but good socket
         # disabling this test, because MySQL raises:
         # MySQL error 2005: Unknown MySQL server host 'invalidHost'
-        # db = Db(user=self._user, passwd=self._pass, 
+        # db = Db(user=self._user, passwd=self._pass,
         #         host="invalidHost", port=self._port, unix_socket=self._sock)
 
         # invalid port but good socket
         # disabling this test, because MySQL raises:
         # MySQL error 2003: Can't connect to MySQL server on '127.0.0.1'
-        # db = Db(user=self._user, passwd=self._pass, host=self._host, 
+        # db = Db(user=self._user, passwd=self._pass, host=self._host,
         #         port=9876543, unix_socket=self._sock)
         pass
 
     def testConn_badSocketGoodHostPort(self):
         # invalid socket, but good host/port
-        db = Db(user=self._user, passwd=self._pass, host=self._host, 
+        db = Db(user=self._user, passwd=self._pass, host=self._host,
                 port=self._port, unix_socket="/x/sock")
         db.connect()
         db.disconnect()
@@ -212,7 +212,7 @@ class TestDbLocal(unittest.TestCase):
         # not connected at all
         self.assertFalse(db.isConnected())
         # just initialize state, still not connected at all
-        db = Db(user=self._user, passwd=self._pass, host=self._host, 
+        db = Db(user=self._user, passwd=self._pass, host=self._host,
                 port=self._port, unix_socket=self._sock)
         self.assertFalse(db.isConnected())
         # connect to server, not to db
@@ -231,7 +231,7 @@ class TestDbLocal(unittest.TestCase):
         """
         Try interleaving operations on multiple databases.
         """
-        db = Db(user=self._user, passwd=self._pass, host=self._host, 
+        db = Db(user=self._user, passwd=self._pass, host=self._host,
                 port=self._port, unix_socket=self._sock)
         db.createDb(self._dbA)
         db.createDb(self._dbB)
@@ -253,7 +253,7 @@ class TestDbLocal(unittest.TestCase):
         """
         Test creating db/table that already exists (in default db).
         """
-        db = Db(user=self._user, passwd=self._pass, host=self._host, 
+        db = Db(user=self._user, passwd=self._pass, host=self._host,
                 port=self._port, unix_socket=self._sock)
         db.createDb(self._dbA)
         db.createDb(self._dbA, mayExist=True)
@@ -265,7 +265,7 @@ class TestDbLocal(unittest.TestCase):
         db.dropDb(self._dbA)
 
     def testDropDb(self):
-        db = Db(user=self._user, passwd=self._pass, host=self._host, 
+        db = Db(user=self._user, passwd=self._pass, host=self._host,
                 port=self._port, unix_socket=self._sock)
         db.createDb(self._dbA)
         db.dropDb(self._dbA)
@@ -277,7 +277,7 @@ class TestDbLocal(unittest.TestCase):
         """
         Test creating db/table that already exists (in non default db).
         """
-        db = Db(user=self._user, passwd=self._pass, host=self._host, 
+        db = Db(user=self._user, passwd=self._pass, host=self._host,
                 port=self._port, unix_socket=self._sock)
         db.createDb(self._dbA)
         self.assertRaises(DbException, db.createDb, self._dbA)
@@ -297,7 +297,7 @@ class TestDbLocal(unittest.TestCase):
         db.disconnect()
 
     def testDropTable(self):
-        db = Db(user=self._user, passwd=self._pass, host=self._host, 
+        db = Db(user=self._user, passwd=self._pass, host=self._host,
                 port=self._port, unix_socket=self._sock)
         # using current db
         db.createDb(self._dbA)
@@ -339,7 +339,7 @@ class TestDbLocal(unittest.TestCase):
         """
         Test checkExist for databases and tables.
         """
-        db = Db(user=self._user, passwd=self._pass, host=self._host, 
+        db = Db(user=self._user, passwd=self._pass, host=self._host,
                 port=self._port, unix_socket=self._sock)
         self.assertFalse(db.dbExists("bla"))
         self.assertFalse(db.tableExists("bla"))
@@ -370,7 +370,7 @@ class TestDbLocal(unittest.TestCase):
         """
         Testing functionality related to views.
         """
-        db = Db(user=self._user, passwd=self._pass, host=self._host, 
+        db = Db(user=self._user, passwd=self._pass, host=self._host,
                 port=self._port, unix_socket=self._sock)
         db.createDb(self._dbA)
         db.useDb(self._dbA)
@@ -384,7 +384,7 @@ class TestDbLocal(unittest.TestCase):
         """
         Testing recovery from lost connection.
         """
-        db = Db(user=self._user, passwd=self._pass, host=self._host, 
+        db = Db(user=self._user, passwd=self._pass, host=self._host,
                 port=self._port, unix_socket=self._sock,
                 sleepLen=5, maxRetryCount=10)
         db.connect()
@@ -428,7 +428,7 @@ class TestDbLocal(unittest.TestCase):
     def testLoadSqlScriptPlainPasswd(self):
         # password is disallowed through loadsqlscript, check on that.
         f, fN = tempfile.mkstemp(suffix=".csv", dir="/tmp", text="True")
-        db = Db(user=self._user, passwd=self._pass, 
+        db = Db(user=self._user, passwd=self._pass,
                 host=self._host, port=self._port)
         db.createDb(self._dbA)
         self.assertRaises(DbException, db.loadSqlScript, fN, self._dbA)
@@ -445,7 +445,7 @@ class TestDbLocal(unittest.TestCase):
         f.write('1\n2\n3\n4\n4\n4\n5\n3\n')
         f.close()
 
-        db = Db(user=self._user, passwd=self._pass, 
+        db = Db(user=self._user, passwd=self._pass,
                 unix_socket=self._sock, local_infile=1)
         db.createDb(self._dbA)
         db.useDb(self._dbA)
@@ -472,8 +472,8 @@ class TestDbLocal(unittest.TestCase):
 ####################################################################################
 def main():
     logging.basicConfig(
-        format='%(asctime)s %(name)s %(levelname)s: %(message)s', 
-        datefmt='%m/%d/%Y %I:%M:%S', 
+        format='%(asctime)s %(name)s %(levelname)s: %(message)s',
+        datefmt='%m/%d/%Y %I:%M:%S',
         level=logging.DEBUG)
 
     credFile = os.path.expanduser(TestDbLocal.CREDFILE)

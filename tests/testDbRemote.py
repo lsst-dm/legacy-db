@@ -2,7 +2,7 @@
 
 # LSST Data Management System
 # Copyright 2013-2014 LSST Corporation.
-# 
+#
 # This product includes software developed by the
 # LSST Project (http://www.lsst.org/).
 #
@@ -10,14 +10,14 @@
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
-# 
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
-# You should have received a copy of the LSST License Statement and 
-# the GNU General Public License along with this program.  If not, 
+#
+# You should have received a copy of the LSST License Statement and
+# the GNU General Public License along with this program.  If not,
 # see <http://www.lsstcorp.org/LegalNotices/>.
 
 """
@@ -56,7 +56,7 @@ class TestDbRemote(unittest.TestCase):
     CREDFILE = "~/.lsst.testRemote.my.cnf"
 
     def setUp(self):
-        dict = readCredentialFile(self.CREDFILE, 
+        dict = readCredentialFile(self.CREDFILE,
                                   logging.getLogger("lsst.db.testDbRemote"))
         (self._host, self._port, self._user, self._pass) = \
             [dict[k] for k in ('host', 'port', 'user', 'passwd')]
@@ -66,7 +66,7 @@ class TestDbRemote(unittest.TestCase):
         self._dbB = "%s_dbWrapperTestDb_B" % self._user
         self._dbC = "%s_dbWrapperTestDb_C" % self._user
 
-        db = Db(user=self._user, passwd=self._pass, 
+        db = Db(user=self._user, passwd=self._pass,
                 host=self._host, port=self._port)
         if db.dbExists(self._dbA): db.dropDb(self._dbA)
         if db.dbExists(self._dbB): db.dropDb(self._dbB)
@@ -78,7 +78,7 @@ class TestDbRemote(unittest.TestCase):
         Basic test: connect through port, create db and connect to it, create one
         table, drop the db, disconnect.
         """
-        db = Db(user=self._user, passwd=self._pass, 
+        db = Db(user=self._user, passwd=self._pass,
                 host=self._host, port=self._port)
         db.createDb(self._dbA)
         db.useDb(self._dbA)
@@ -93,28 +93,28 @@ class TestDbRemote(unittest.TestCase):
         db.disconnect()
 
     def testConn_invalidHost(self):
-        db = Db(user=self._user, passwd=self._pass, 
+        db = Db(user=self._user, passwd=self._pass,
                 host="invalidHost", port=self._port)
         self.assertRaises(DbException, db.connect)
 
     def testConn_invalidHost(self):
-        db = Db(user=self._user, passwd=self._pass, 
+        db = Db(user=self._user, passwd=self._pass,
                 host="dummyHost", port=3036)
         self.assertRaises(DbException, db.connect)
 
     def testConn_invalidPortNo(self):
-        db = Db(user=self._user, passwd=self._pass, 
+        db = Db(user=self._user, passwd=self._pass,
                 host=self._host,port=987654)
         self.assertRaises(DbException, db.connect)
 
     def testConn_wrongPortNo(self):
-        db = Db(user=self._user, passwd=self._pass, host=self._host, 
+        db = Db(user=self._user, passwd=self._pass, host=self._host,
                 port=1579, sleepLen=0, maxRetryCount=10)
         self.assertRaises(DbException, db.connect)
 
     def testConn_invalidUserName(self):
         db = Db(user="hackr", passwd=self._pass, host=self._host, port=self._port)
-        # Disabling because this can work, depending on mysql 
+        # Disabling because this can work, depending on mysql
         # configuration, for example, it can default to ''@localhost
         # self.assertRaises(DbException, db.connect)
         db = Db(user=self._user, passwd="!MyPw", host=self._host, port=self._port)
@@ -124,13 +124,13 @@ class TestDbRemote(unittest.TestCase):
         """
         Test isConnected and isConnectedToDb.
         """
-        db = Db(user=self._user, passwd=self._pass, 
+        db = Db(user=self._user, passwd=self._pass,
                 host=self._host, port=self._port)
         db.disconnect()
         # not connected at all
         self.assertFalse(db.isConnected())
         # just initialize state, still not connected at all
-        db = Db(user=self._user, passwd=self._pass, 
+        db = Db(user=self._user, passwd=self._pass,
                 host=self._host, port=self._port)
         self.assertFalse(db.isConnected())
         # connect to server, not to db
@@ -149,7 +149,7 @@ class TestDbRemote(unittest.TestCase):
         """
         Test checkExist for databases and tables.
         """
-        db = Db(user=self._user, passwd=self._pass, 
+        db = Db(user=self._user, passwd=self._pass,
                 host=self._host, port=self._port)
         self.assertFalse(db.dbExists("bla"))
         self.assertFalse(db.tableExists("bla"))
@@ -176,8 +176,8 @@ class TestDbRemote(unittest.TestCase):
 ####################################################################################
 def main():
     logging.basicConfig(
-        format='%(asctime)s %(name)s %(levelname)s: %(message)s', 
-        datefmt='%m/%d/%Y %I:%M:%S', 
+        format='%(asctime)s %(name)s %(levelname)s: %(message)s',
+        datefmt='%m/%d/%Y %I:%M:%S',
         level=logging.DEBUG)
 
     credFile = os.path.expanduser(TestDbRemote.CREDFILE)
