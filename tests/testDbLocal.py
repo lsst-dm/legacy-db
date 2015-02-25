@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 # LSST Data Management System
-# Copyright 2013-2014 LSST Corporation.
+# Copyright 2013-2015 LSST Corporation.
 # 
 # This product includes software developed by the
 # LSST Project (http://www.lsst.org/).
@@ -476,10 +476,9 @@ def main():
         datefmt='%m/%d/%Y %I:%M:%S', 
         level=logging.DEBUG)
 
-    if TestDbLocal.CREDFILE.startswith('~'): 
-        credFile = os.path.expanduser(TestDbLocal.CREDFILE)
+    credFile = os.path.expanduser(TestDbLocal.CREDFILE)
     if not os.path.isfile(credFile):
-        print "Required file with credentials '%s' not found." % credFile
+        logging.warning("Required file with credentials '%s' not found." % credFile)
     else:
         unittest.main()
 
