@@ -38,7 +38,6 @@ import ConfigParser
 import contextlib
 import copy
 import os.path
-import string
 import StringIO
 import subprocess
 import sys
@@ -521,11 +520,8 @@ class Db(object):
         if self._conn is None:
             self.connect()
         with contextlib.closing(self._conn.cursor()) as cursor:
-            # "string.replace" below to bypass the bug in logging, see DM-2242
-            log.debug("Executing %s, optParams: %s." % \
-                      (string.replace(command, "%s", "%%s"),
-                       ', '.join(optParams) if optParams else ''))
-
+            log.debug("Executing %s, optParams: %s.", \
+                      command, ', '.join(optParams) if optParams else '')
             try:
                 if optParams:
                     cursor.execute(command, optParams)
