@@ -365,6 +365,18 @@ class TestDbLocal(unittest.TestCase):
 
         db.disconnect()
 
+    def testOptParams(self):
+        """
+        Testing optional parameter binding.
+        """
+        db = Db(user=self._user, passwd=self._pass, host=self._host,
+                port=self._port, unix_socket=self._sock)
+        db.createDb(self._dbA)
+        db.useDb(self._dbA)
+        db.createTable("t1", "(i char(64), j char(64))")
+        db.execCommand0("INSERT INTO t1 VALUES(%s, %s)", ("aaa", "bbb"))
+        db.dropDb(self._dbA)
+
     def testViews(self):
         """
         Testing functionality related to views.
