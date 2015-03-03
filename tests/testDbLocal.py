@@ -484,8 +484,7 @@ class TestDbLocal(unittest.TestCase):
 def main():
     log.configure()
 
-    if TestDbLocal.CREDFILE.startswith('~'):
-        credFile = os.path.expanduser(TestDbLocal.CREDFILE)
+    credFile = os.path.expanduser(TestDbLocal.CREDFILE)
     if not os.path.isfile(credFile):
         logging.warning("Required file with credentials '%s' not found." % credFile)
     else:
