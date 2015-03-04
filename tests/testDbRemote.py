@@ -182,7 +182,7 @@ def main():
 
     credFile = os.path.expanduser(TestDbRemote.CREDFILE)
     if not os.path.isfile(credFile):
-        print "Required file with credentials '%s' not found." % credFile
+        logging("Required file with credentials '%s' not found.", credFile)
     else:
         unittest.main()
 

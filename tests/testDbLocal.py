@@ -51,6 +51,7 @@ import time
 import unittest
 
 # local
+import lsst.log as log
 from lsst.db.db import Db, DbException
 from lsst.db.utils import readCredentialFile
 
@@ -490,7 +491,7 @@ def main():
 
     credFile = os.path.expanduser(TestDbLocal.CREDFILE)
     if not os.path.isfile(credFile):
-        logging.warning("Required file with credentials '%s' not found." % credFile)
+        logging.warning("Required file with credentials '%s' not found.", credFile)
     else:
         unittest.main()
 
