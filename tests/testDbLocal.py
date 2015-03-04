@@ -44,14 +44,13 @@ Known issues and todos:
 
 # standard library
 import ConfigParser
-import logging
+import logging as log
 import os
 import tempfile
 import time
 import unittest
 
 # local
-import lsst.log as log
 from lsst.db.db import Db, DbException
 from lsst.db.utils import readCredentialFile
 
@@ -61,7 +60,7 @@ class TestDbLocal(unittest.TestCase):
 
     def setUp(self):
         dict = readCredentialFile(self.CREDFILE,
-                                  logging.getLogger("lsst.db.testDbLocal"))
+                                  log.getLogger("lsst.db.testDbLocal"))
         (self._sock, self._host, self._port, self._user, self._pass) = \
            [dict.get(k, None) for k in (
                 'unix_socket', 'host', 'port', 'user', 'passwd')]
@@ -484,14 +483,14 @@ class TestDbLocal(unittest.TestCase):
 
 ####################################################################################
 def main():
-    logging.basicConfig(
+    log.basicConfig(
         format='%(asctime)s %(name)s %(levelname)s: %(message)s',
         datefmt='%m/%d/%Y %I:%M:%S',
-        level=logging.DEBUG)
+        level=log.DEBUG)
 
     credFile = os.path.expanduser(TestDbLocal.CREDFILE)
     if not os.path.isfile(credFile):
-        logging.warning("Required file with credentials '%s' not found.", credFile)
+        log.warning("Required file with credentials '%s' not found.", credFile)
     else:
         unittest.main()
 

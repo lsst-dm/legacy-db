@@ -23,7 +23,7 @@
 """
 This is a unittest for the Db class, geared for testing remote server connections.
 
-The test requires ~/.lsst.testRemote.my.cnf config file with the following:
+The test requires ~/.lsst/dbAuth-testRemote.txt config file with the following:
 [mysql]
 user     = <username>
 passwd = <passwd> # this is optional
@@ -41,7 +41,7 @@ Known issues and todos:
 
 # standard library
 import ConfigParser
-import logging
+import logging as log
 import os
 import tempfile
 import time
@@ -53,11 +53,11 @@ from lsst.db.utils import readCredentialFile
 
 
 class TestDbRemote(unittest.TestCase):
-    CREDFILE = "~/.lsst.testRemote.my.cnf"
+    CREDFILE = "~/.lsst/dbAuth-testRemote.txt"
 
     def setUp(self):
         dict = readCredentialFile(self.CREDFILE,
-                                  logging.getLogger("lsst.db.testDbRemote"))
+                                  log.getLogger("lsst.db.testDbRemote"))
         (self._host, self._port, self._user, self._pass) = \
             [dict[k] for k in ('host', 'port', 'user', 'passwd')]
         if self._pass is None:
@@ -175,14 +175,14 @@ class TestDbRemote(unittest.TestCase):
 
 ####################################################################################
 def main():
-    logging.basicConfig(
+    log.basicConfig(
         format='%(asctime)s %(name)s %(levelname)s: %(message)s',
         datefmt='%m/%d/%Y %I:%M:%S',
-        level=logging.DEBUG)
+        level=log.DEBUG)
 
     credFile = os.path.expanduser(TestDbRemote.CREDFILE)
     if not os.path.isfile(credFile):
-        logging("Required file with credentials '%s' not found.", credFile)
+        log.warning("Required file with credentials '%s' not found.", credFile)
     else:
         unittest.main()
 
