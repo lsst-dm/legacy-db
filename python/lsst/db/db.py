@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 # LSST Data Management System
-# Copyright 2008-2014 LSST Corporation.
-# 
+# Copyright 2008-2015 LSST Corporation.
+#
 # This product includes software developed by the
 # LSST Project (http://www.lsst.org/).
 #
@@ -10,14 +10,14 @@
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
-# 
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
-# You should have received a copy of the LSST License Statement and 
-# the GNU General Public License along with this program.  If not, 
+#
+# You should have received a copy of the LSST License Statement and
+# the GNU General Public License along with this program.  If not,
 # see <http://www.lsstcorp.org/LegalNotices/>.
 
 """
@@ -28,17 +28,16 @@ handles database errors.
 @author  Jacek Becla, SLAC
 
 Known issues:
- * execCommandN: what if I have a huge number of rows? It'd be nice to also have 
+ * execCommandN: what if I have a huge number of rows? It'd be nice to also have
    a way to iterate over results without materializing them all in client memory
    (perhaps via a generator).
- * need to integrate logging into lsst-stack logging
 """
 
 # standard library imports
 import ConfigParser
 import contextlib
 import copy
-import logging
+import logging as log
 import os.path
 import StringIO
 import subprocess
@@ -83,7 +82,7 @@ class Db(object):
     lost connection. It also implements some useful functions, like creating
     databases/tables. Connection is done either through host/port or socket (at
     least one of these must be provided). Password can be empty. If it can't
-    connect, it will retry (and sleep). Public functions do not have to call 
+    connect, it will retry (and sleep). Public functions do not have to call
     "connect()" - ff connection is needed and is not ready, the functions will
     establish it first.
     """
@@ -175,7 +174,7 @@ class Db(object):
         "localhost" is used.
         """
         self._conn = None
-        self._logger = logging.getLogger("lsst.db.Db")
+        self._log = log.getLogger("lsst.db.Db")
         self._kwargs = copy.deepcopy(kwargs)
         self._sleepLen = self._kwargs.pop("sleepLen", 3)
         self._attemptMaxNo = 1 + self._kwargs.pop("maxRetryCount", 0)
@@ -194,16 +193,16 @@ class Db(object):
         # MySQL will use socket for "localhost". 127.0.0.1 forces TCP.
         if self._kwargs.get("host", "") == "localhost":
             self._kwargs["host"] = "127.0.0.1"
-            self._logger.warning('"localhost" specified, switching to 127.0.0.1')
+            self._log.warning('"localhost" specified, switching to 127.0.0.1')
         if "port" in self._kwargs:
             self._kwargs["port"] = int(self._kwargs["port"])
         # Map MySQL warnings to exceptions
         warnings.filterwarnings("error", category=MySQLdb.Warning)
         # Log the connection parameters
-        self._logger.info("Created lsst.db.Db with connection parameters " + \
-                          "(password not shown): %s" % \
-                              str(["%s:%s" % (x, self._kwargs[x]) \
-                                   for x in self._kwargs if not x == "passwd"]))
+        self._log.info("Created lsst.db.Db with connection parameters " + \
+                       "(password not shown): %s", \
+                       str(["%s:%s" % (x, self._kwargs[x]) \
+                            for x in self._kwargs if not x == "passwd"]))
 
     def __del__(self):
         """
@@ -219,11 +218,11 @@ class Db(object):
         if self._conn is None:
             return False
         try:
-            self._logger.info("Pinging server")
+            self._log.info("Pinging server")
             self._conn.ping()
         except MySQLdb.OperationalError as e:
             if self._isConnectionError(e.args[0]):
-                self._logger.debug("Ping failed with error %d: %s" % error.args[:2])
+                self._log.debug("Ping failed with error %d: %s", error.args[:2])
                 self._conn = None
                 return False
             raise
@@ -237,7 +236,7 @@ class Db(object):
             self._doConnect()
         if dbName is not None:
             try:
-                self._logger.info("Selecting db %s." % dbName)
+                self._log.info("Selecting db %s.", dbName)
                 self._conn.select_db(dbName)
             except:
                 self._handleException(sys.exc_info()[1])
@@ -245,19 +244,18 @@ class Db(object):
     def _doConnect(self):
         n = 1
         while True:
-            self._logger.info("Connecting (attempt %d of %d)" %
-                              (n, self._attemptMaxNo))
+            self._log.info("Connecting (attempt %d of %d)", n, self._attemptMaxNo)
             try:
-                self._logger.debug("mysql.connect.")
+                self._log.debug("mysql.connect.")
                 self._conn = MySQLdb.connect(**self._kwargs)
                 return
             except MySQLdb.Error as e:
                 msg = "MySQL error %d: %s" % e.args[:2]
-                self._logger.error(msg)
-                if (n >= self._attemptMaxNo or 
+                self._log.error(msg)
+                if (n >= self._attemptMaxNo or
                     not self._isConnectionError(e.args[0])):
                     errCode = self._getErrCode(e.args[0])
-                    self._logger.error("Can't recover, sorry")
+                    self._log.error("Can't recover, sorry")
                     raise DbException(errCode, msg)
                 # try again
                 n += 1
@@ -270,9 +268,9 @@ class Db(object):
         """
         Disconnect from the server.
         """
-        self._logger.info("closing connection")
         if self._conn is None:
             return
+        self._log.info("closing connection")
         try:
             self._conn.commit()
             self._conn.close()
@@ -291,9 +289,9 @@ class Db(object):
             msg = "MySQL warning %s" % e.message
             errCode = DbException.SERVER_WARNING
         else:
-            self._logger.error("Unexpected exception: %s" % e)
+            self._log.error("Unexpected exception: %s", e)
             raise e
-        self._logger.error(msg)
+        self._log.error(msg)
         raise DbException(errCode, msg)
 
     def _getErrCode(self, mysqlErrCode):
@@ -313,13 +311,13 @@ class Db(object):
         Raise exception if the database already exists and mayExist is False.
         Note, it will not connect to that database and it will not make it default.
         """
-        if dbName is None: 
+        if dbName is None:
             raise DbException(DbException.INVALID_DB_NAME, "<None>")
         try:
             self.execCommand0("CREATE DATABASE `%s`" % dbName)
         except DbException as e:
             if e.errCode() == DbException.DB_EXISTS and mayExist:
-                self._logger.debug("create db failed, mayExist is True")
+                self._log.debug("create db failed, mayExist is True")
                 pass
             else:
                 raise
@@ -353,7 +351,7 @@ class Db(object):
         @param dbName     Database name.
         @param mustExist  Flag indicating what to do if the database does not exist.
 
-        Raise exception if the database does not exists and the flag mustExist is
+        Raise exception if the database does not exist and the flag mustExist is
         not set to False. Disconnect from the database if it is the current
         database.
         """
@@ -361,7 +359,7 @@ class Db(object):
             self.execCommand0("DROP DATABASE `%s`" % dbName)
         except DbException as e:
             if e.errCode() == DbException.DB_DOES_NOT_EXIST and not mustExist:
-                self._logger.debug("dropDb failed, mustExist is False")
+                self._log.debug("dropDb failed, mustExist is False")
             else:
                 raise
 
@@ -399,16 +397,16 @@ class Db(object):
         dbNameStr = "`%s`." % dbName if dbName is not None else ""
         try:
             self.execCommand0("CREATE TABLE %s`%s` %s" % \
-                                  (dbNameStr, tableName, tableSchema))
+                              (dbNameStr, tableName, tableSchema))
         except  DbException as e:
             if e.errCode() == DbException.TB_EXISTS and mayExist:
-                self._logger.debug("create table failed, mayExist is True")
+                self._log.debug("create table failed, mayExist is True")
             else:
                 raise
 
     def dropTable(self, tableName, dbName=None, mustExist=True):
         """
-        Drop table <tableName> in database <dbName>. 
+        Drop table <tableName> in database <dbName>.
 
         @param tableName  Table name.
         @param dbName     Database name.
@@ -423,7 +421,7 @@ class Db(object):
             self.execCommand0("DROP TABLE %s`%s`" % (dbNameStr, tableName))
         except DbException as e:
             if e.errCode() == DbException.TB_DOES_NOT_EXIST and not mustExist:
-                self._logger.debug("dropTable failed, mustExist is False")
+                self._log.debug("dropTable failed, mustExist is False")
             else:
                 raise
 
@@ -467,51 +465,55 @@ class Db(object):
         s.write(tableName)
         if len(ret) == 0:
             s.write(" is empty.\n")
-        else: 
+        else:
             s.write(':\n')
         for r in ret:
             print >> s, "   ", r
         return s.getvalue()
 
     #### Executing command related functions #######################################
-    def execCommand0(self, command):
+    def execCommand0(self, command, optParams=None):
         """
         Execute SQL command and discard any result.
 
         @param command    SQL command that returns no rows.
+        @param optParams  Optional parameters to bind to the query.
         """
-        self._execCommand(command, 0)
+        self._execCommand(command, 0, optParams)
 
-    def execCommand1(self, command):
+    def execCommand1(self, command, optParams=None):
         """
         Execute SQL command that returns a single row (a sequence of column values),
         or None if the statemetn returned no results.
 
         @param command    SQL command that returns one row.
+        @param optParams  Optional parameters to bind to the query.
 
         @return string    Result.
         """
-        return self._execCommand(command, 1)
+        return self._execCommand(command, 1, optParams)
 
-    def execCommandN(self, command):
+    def execCommandN(self, command, optParams=None):
         """
         Execute SQL command that returns a sequence of all statement result rows,
         which are themselves sequences of column values.
 
         @param command    SQL command. that returns more than one row.
+        @param optParams  Optional parameters to bind to the query.
 
         @return string    Result.
         """
-        return self._execCommand(command, 'n')
+        return self._execCommand(command, 'n', optParams)
 
-    def _execCommand(self, command, nRowsRet):
+    def _execCommand(self, command, nRowsRet, optParams=None):
         """
         Execute SQL command which return any number of rows.
 
         @param command    SQL command.
         @param nRowsRet   Expected number of returned rows (valid: '0', '1', 'n').
+        @param optParams  Optional parameters to bind to the query.
 
-        @return string Results from the query. Empty string if not results.
+        @return string Results from the query. Empty string if no results.
 
         Establish connection if it hasn't been established, but do not attempt to
         recover from any failures -- this is left up to user.
@@ -519,19 +521,23 @@ class Db(object):
         if self._conn is None:
             self.connect()
         with contextlib.closing(self._conn.cursor()) as cursor:
-            self._logger.debug("Executing '%s'." % command)
+            log.debug("Executing '%s', optParams: %s.", command,
+                      ', '.join(optParams) if optParams else 'None')
             try:
-                cursor.execute(command)
+                if optParams:
+                    cursor.execute(command, optParams)
+                else:
+                    cursor.execute(command)
             except:
                 self._handleException(sys.exc_info()[1])
             if nRowsRet == 0:
                 ret = None
             elif nRowsRet == 1:
                 ret = cursor.fetchone()
-                self._logger.debug("Got: %s" % str(ret))
+                self._log.debug("Got: %s", str(ret))
             else:
                 ret = cursor.fetchall()
-                self._logger.debug("Got: %s" % str(ret))
+                self._log.debug("Got: %s", str(ret))
             return ret
 
     #### All others ################################################################
@@ -577,8 +583,8 @@ class Db(object):
                 else:
                     mysqlArgs.append(s)
         dbInfo = " into db '%s'." % dbName if dbName is not None else ""
-        self._logger.info("Loading script %s%s. Args are: %s" % \
-                              (scriptPath, dbInfo, str(mysqlArgs)))
+        self._log.info("Loading script %s%s. Args are: %s",
+                       scriptPath, dbInfo, str(mysqlArgs))
         with file(scriptPath) as scriptFile:
             if subprocess.call(mysqlArgs, stdin=scriptFile) != 0:
                 msg = "Failed to execute %s < %s" % (connectArgs, scriptPath)

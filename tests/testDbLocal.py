@@ -23,7 +23,7 @@
 """
 This is a unittest for the Db class, geared for testing local server connections.
 
-The test requires credential file ~/.lsst.testLocal.my.cnf config file with
+The test requires credential file ~/.lsst/dbAuth-testLocal.txt config file with
 the following:
 [mysql]
 user     = <userName>
@@ -51,12 +51,13 @@ import time
 import unittest
 
 # local
+import lsst.log as log
 from lsst.db.db import Db, DbException
 from lsst.db.utils import readCredentialFile
 
 
 class TestDbLocal(unittest.TestCase):
-    CREDFILE = "~/.lsst.testLocal.my.cnf"
+    CREDFILE = "~/.lsst/dbAuth-testLocal.txt"
 
     def setUp(self):
         dict = readCredentialFile(self.CREDFILE,
@@ -366,6 +367,18 @@ class TestDbLocal(unittest.TestCase):
 
         db.disconnect()
 
+    def testOptParams(self):
+        """
+        Testing optional parameter binding.
+        """
+        db = Db(user=self._user, passwd=self._pass, host=self._host,
+                port=self._port, unix_socket=self._sock)
+        db.createDb(self._dbA)
+        db.useDb(self._dbA)
+        db.createTable("t1", "(i char(64), j char(64))")
+        db.execCommand0("INSERT INTO t1 VALUES(%s, %s)", ("aaa", "bbb"))
+        db.dropDb(self._dbA)
+
     def testViews(self):
         """
         Testing functionality related to views.
@@ -478,7 +491,7 @@ def main():
 
     credFile = os.path.expanduser(TestDbLocal.CREDFILE)
     if not os.path.isfile(credFile):
-        logging.warning("Required file with credentials '%s' not found." % credFile)
+        logging.warning("Required file with credentials '%s' not found.", credFile)
     else:
         unittest.main()
 

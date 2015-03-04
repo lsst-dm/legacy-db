@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 # LSST Data Management System
-# Copyright 2013-2014 LSST Corporation.
+# Copyright 2013-2015 LSST Corporation.
 #
 # This product includes software developed by the
 # LSST Project (http://www.lsst.org/).
@@ -23,7 +23,7 @@
 """
 This is a unittest for the Db class, geared for testing remote server connections.
 
-The test requires ~/.lsst.testRemote.my.cnf config file with the following:
+The test requires ~/.lsst/dbAuth-testRemote.txt config file with the following:
 [mysql]
 user     = <username>
 passwd = <passwd> # this is optional
@@ -53,7 +53,7 @@ from lsst.db.utils import readCredentialFile
 
 
 class TestDbRemote(unittest.TestCase):
-    CREDFILE = "~/.lsst.testRemote.my.cnf"
+    CREDFILE = "~/.lsst/dbAuth-testRemote.txt"
 
     def setUp(self):
         dict = readCredentialFile(self.CREDFILE,
@@ -182,7 +182,7 @@ def main():
 
     credFile = os.path.expanduser(TestDbRemote.CREDFILE)
     if not os.path.isfile(credFile):
-        print "Required file with credentials '%s' not found." % credFile
+        logging("Required file with credentials '%s' not found.", credFile)
     else:
         unittest.main()
 
