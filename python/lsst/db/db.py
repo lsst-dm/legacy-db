@@ -43,7 +43,6 @@ import StringIO
 import subprocess
 import sys
 import warnings
-from datetime import datetime
 from time import sleep
 
 # related third-package library imports
