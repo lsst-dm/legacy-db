@@ -291,6 +291,11 @@ class Db(object):
         else:
             self._log.error("Unexpected exception: %s", e)
             raise e
+        # If it is connection error, disconnect. This fill force
+        # reconnecting when next query comes. Don't simply rerun
+        # failed query, that is too dangerous.
+        if self._isConnectionError(e.args[0]):
+            self.disconnect()
         self._log.error(msg)
         raise DbException(errCode, msg)
 
