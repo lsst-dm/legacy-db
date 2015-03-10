@@ -64,6 +64,8 @@ class TestDbPool(unittest.TestCase):
         dbPool.getConn("a").execCommand0("SHOW DATABASES LIKE '%Stripe82%'")
         dbPool.getConn("b").execCommand0("SHOW DATABASES LIKE '%Stripe82%'")
         dbPool.getConn("c").execCommand0("SHOW DATABASES LIKE '%Stripe82%'")
+        dbPool.getConn("a").disconnect()
+        dbPool.getConn("a").execCommand0("SHOW DATABASES LIKE '%Stripe82%'")
         dbPool.delConn("b")
         dbPool.getConn("a").execCommand0("SHOW DATABASES LIKE '%Stripe82%'")
         self.assertRaises(DbPoolException, dbPool.getConn, "b")
