@@ -38,7 +38,8 @@ from lsst.db.exception import produceExceptionClass
 ####################################################################################
 
 DbPoolException = produceExceptionClass('DbException', [
-        (1600, "ENTRY_NOT_FOUND", "Requested Db entry not found.")])
+    (1600, "ENTRY_NOT_FOUND", "Requested Db entry not found."),
+    (1605, "ENTRY_EXISTS", "The Db entry already exists.")])
 
 ####################################################################################
 class DbPool(object):
@@ -64,7 +65,12 @@ class DbPool(object):
         @param dbConn     Db Connection Object
         @param checkFreq  Frequency of rechecking if connection is alive in seconds,
                           -1 for "don't check it at all"
+
+        If will raise ENTRY_EXISTS exception if the entry already exists.
         """
+        if cName in self._pool:
+            raise DbPoolException(DbPoolException.ENTRY_EXISTS, cName)
+
         # Remember timestamp when connection was last checked.
         lastChecked = 0
 
