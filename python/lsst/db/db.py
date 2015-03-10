@@ -532,16 +532,16 @@ class Db(object):
                     cursor.execute(command, optParams)
                 else:
                     cursor.execute(command)
+                if nRowsRet == 0:
+                    ret = None
+                elif nRowsRet == 1:
+                    ret = cursor.fetchone()
+                    self._log.debug("Got: %s", str(ret))
+                else:
+                    ret = cursor.fetchall()
+                    self._log.debug("Got: %s", str(ret))
             except:
                 self._handleException(sys.exc_info()[1])
-            if nRowsRet == 0:
-                ret = None
-            elif nRowsRet == 1:
-                ret = cursor.fetchone()
-                self._log.debug("Got: %s", str(ret))
-            else:
-                ret = cursor.fetchall()
-                self._log.debug("Got: %s", str(ret))
             return ret
 
     #### All others ################################################################
