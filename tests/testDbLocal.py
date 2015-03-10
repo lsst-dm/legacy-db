@@ -43,7 +43,6 @@ Known issues and todos:
 """
 
 # standard library
-import ConfigParser
 import logging as log
 import os
 import tempfile
