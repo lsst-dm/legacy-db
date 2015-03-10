@@ -21,7 +21,9 @@
 # see <http://www.lsstcorp.org/LegalNotices/>.
 
 """
-This module implement connection pool - a pool of "db" objects.
+This module implements a very basic connection pool - a dictionary  of named "db"
+objects. Optionally, each db object can have it's connection refreshed to protect
+against connection timeout.
 
 @author  Jacek Becla, SLAC
 
@@ -81,9 +83,13 @@ class DbPool(object):
     def delConn(self, cName):
         """
         Remove Db Connection Object corresponding to a given name from the pool.
+
+        If will raise ENTRY_NOT_FOUND exception if the entry is not found for a
+        given name.
         """
-        if cName in self._pool:
-            del self._pool[cName]
+        if cName not in self._pool:
+            raise DbPoolException(DbPoolException.ENTRY_NOT_FOUND, cName)
+        del self._pool[cName]
 
     def getConn(self, cName):
         """
@@ -91,7 +97,7 @@ class DbPool(object):
         ensure connection did not time out and reconnect if needed.
 
         If will raise ENTRY_NOT_FOUND exception if the entry is not found for a
-        given name.
+        given name. It can raise MySQLdb.* exceptions if connection checking is on.
         """
         if cName not in self._pool:
             raise DbPoolException(DbPoolException.ENTRY_NOT_FOUND, cName)

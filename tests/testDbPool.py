@@ -52,11 +52,11 @@ class TestDbPool(unittest.TestCase):
         Basic test: add, get, delete.
         """
         dbPool = DbPool()
-        dbPool.addConn("a", Db(read_default_file='~/.lsst/dbAuth-test.txt'), 5)
-        dbPool.addConn("b", Db(read_default_file='~/.lsst/dbAuth-test.txt'), 1)
-        dbPool.addConn("c", Db(read_default_file='~/.lsst/dbAuth-test.txt'))
+        dbPool.addConn("a", Db(read_default_file=TestDbPool.CREDFILE), 5)
+        dbPool.addConn("b", Db(read_default_file=TestDbPool.CREDFILE), 1)
+        dbPool.addConn("c", Db(read_default_file=TestDbPool.CREDFILE))
         self.assertRaises(DbPoolException, dbPool.addConn, "c",
-                          Db(read_default_file='~/.lsst/dbAuth-test.txt'))
+                          Db(read_default_file=TestDbPool.CREDFILE))
         dbPool.getConn("a").execCommand0("SHOW DATABASES LIKE '%Stripe82%'")
         dbPool.getConn("b").execCommand0("SHOW DATABASES LIKE '%Stripe82%'")
         dbPool.getConn("c").execCommand0("SHOW DATABASES LIKE '%Stripe82%'")
@@ -70,7 +70,7 @@ class TestDbPool(unittest.TestCase):
         dbPool.getConn("a").execCommand0("SHOW DATABASES LIKE '%Stripe82%'")
         dbPool.getConn("c").execCommand0("SHOW DATABASES LIKE '%Stripe82%'")
         dbPool.delConn("a")
-        dbPool.delConn("b")
+        self.assertRaises(DbPoolException, dbPool.delConn, "b")
         dbPool.delConn("c")
 
 ####################################################################################
