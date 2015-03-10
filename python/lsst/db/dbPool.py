@@ -55,6 +55,7 @@ class DbPool(object):
         Create a DbPool instance.
         """
         self._pool = {}
+        self._log = log.getLogger("lsst.db.DbPool")
 
     ##### Connection-related functions #############################################
     def addConn(self, cName, dbConn, checkFreq=600):
@@ -98,9 +99,10 @@ class DbPool(object):
         (db, checkFreq, lastChecked) = self._pool[cName]
         if checkFreq != -1:
             if time() - lastChecked > checkFreq:
-                log.debug("Checking connection before executing query.")
+                self._log.debug(
+                    "Checking connection for '%s' before executing query.", cName)
                 if not db.isConnected():
-                    log.debug("Attempting to reconnect.")
+                    self._log.debug("Attempting to reconnect for '%s'.", cName)
                     db.connect()
                 self._pool[cName] = (db, checkFreq, time())
         return db
