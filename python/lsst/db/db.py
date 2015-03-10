@@ -43,7 +43,6 @@ import StringIO
 import subprocess
 import sys
 import warnings
-from datetime import datetime
 from time import sleep
 
 # related third-package library imports
@@ -291,6 +290,11 @@ class Db(object):
         else:
             self._log.error("Unexpected exception: %s", e)
             raise e
+        # If it is connection error, disconnect. This fill force
+        # reconnecting when next query comes. Don't simply rerun
+        # failed query, that is too dangerous.
+        if self._isConnectionError(e.args[0]):
+            self.disconnect()
         self._log.error(msg)
         raise DbException(errCode, msg)
 
@@ -528,16 +532,16 @@ class Db(object):
                     cursor.execute(command, optParams)
                 else:
                     cursor.execute(command)
+                if nRowsRet == 0:
+                    ret = None
+                elif nRowsRet == 1:
+                    ret = cursor.fetchone()
+                    self._log.debug("Got: %s", str(ret))
+                else:
+                    ret = cursor.fetchall()
+                    self._log.debug("Got: %s", str(ret))
             except:
                 self._handleException(sys.exc_info()[1])
-            if nRowsRet == 0:
-                ret = None
-            elif nRowsRet == 1:
-                ret = cursor.fetchone()
-                self._log.debug("Got: %s", str(ret))
-            else:
-                ret = cursor.fetchall()
-                self._log.debug("Got: %s", str(ret))
             return ret
 
     #### All others ################################################################
