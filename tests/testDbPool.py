@@ -52,11 +52,11 @@ class TestDbPool(unittest.TestCase):
         Basic test: add, get, delete.
         """
         dbPool = DbPool()
-        dbPool.addConn("a", Db(read_default_file=TestDbPool.CREDFILE), 5)
-        dbPool.addConn("b", Db(read_default_file=TestDbPool.CREDFILE), 1)
-        dbPool.addConn("c", Db(read_default_file=TestDbPool.CREDFILE))
+        dbPool.addConn("a", 5, read_default_file=TestDbPool.CREDFILE)
+        dbPool.addConn("b", 1, read_default_file=TestDbPool.CREDFILE)
+        dbPool.addConn("c", read_default_file=TestDbPool.CREDFILE)
         self.assertRaises(DbPoolException, dbPool.addConn, "c",
-                          Db(read_default_file=TestDbPool.CREDFILE))
+                          read_default_file=TestDbPool.CREDFILE)
         dbPool.getConn("a").execCommand0("SHOW DATABASES LIKE '%Stripe82%'")
         dbPool.getConn("b").execCommand0("SHOW DATABASES LIKE '%Stripe82%'")
         dbPool.getConn("c").execCommand0("SHOW DATABASES LIKE '%Stripe82%'")
