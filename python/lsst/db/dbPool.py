@@ -60,7 +60,7 @@ class DbPool(object):
         self._log = log.getLogger("lsst.db.DbPool")
 
     ##### Connection-related functions #############################################
-    def addConn(self, cName, dbConn, checkFreq=600):
+    def addConn(self, cName, checkFreq=600, **kwargs):
         """
         Add Db Connection Object to the pool.
 
@@ -78,7 +78,9 @@ class DbPool(object):
         lastChecked = 0
 
         # the pool of named Db objects along with checkFreq and lastCheck time
-        self._pool[cName] = (dbConn, checkFreq, lastChecked)
+
+        # kwargs, checkFreq, lastChecked, Db object
+        self._pool[cName] = [kwargs, checkFreq, lastChecked, None]
 
     def delConn(self, cName):
         """
@@ -102,13 +104,16 @@ class DbPool(object):
         if cName not in self._pool:
             raise DbPoolException(DbPoolException.ENTRY_NOT_FOUND, cName)
 
-        (db, checkFreq, lastChecked) = self._pool[cName]
-        if checkFreq != -1:
+        kwargs, checkFreq, lastChecked, db = self._pool[cName]
+        if db is None:
+            db = Db(**kwargs)
+            self._pool[cName][3] = db
+        elif checkFreq != -1:
             if time() - lastChecked > checkFreq:
                 self._log.debug(
                     "Checking connection for '%s' before executing query.", cName)
                 if not db.isConnected():
                     self._log.debug("Attempting to reconnect for '%s'.", cName)
                     db.connect()
-                self._pool[cName] = (db, checkFreq, time())
+                self._pool[cName][2] = time()
         return db
