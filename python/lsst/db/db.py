@@ -209,6 +209,12 @@ class Db(object):
         """
         self.disconnect()
 
+    ##### Access to cursor #########################################################
+    def getCursor(self):
+        if self._conn is None:
+            self.connect()
+        return self._conn.cursor()
+
     ##### Connection-related functions #############################################
     def isConnected(self):
         """
