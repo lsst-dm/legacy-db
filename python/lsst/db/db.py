@@ -531,8 +531,7 @@ class Db(object):
         if self._conn is None:
             self.connect()
         with contextlib.closing(self._conn.cursor()) as cursor:
-            self._log.debug("Executing '%s', optParams: %s.", command,
-                            ', '.join(optParams) if optParams else 'None')
+            self._log.debug("Executing '%s', optParams: %s.", command, optParams)
             try:
                 if optParams:
                     cursor.execute(command, optParams)
