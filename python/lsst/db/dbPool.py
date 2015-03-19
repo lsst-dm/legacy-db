@@ -44,6 +44,16 @@ DbPoolException = produceExceptionClass('DbException', [
     (1605, "ENTRY_EXISTS", "The Db entry already exists.")])
 
 ####################################################################################
+
+class DbEntry:
+    def __init__(self, checkFreq, lastChecked, **kwargs):
+        self.kwargs = kwargs
+        self.checkFreq = checkFreq
+        self.lastChecked = lastChecked
+        self.dbObj = None
+
+####################################################################################
+
 class DbPool(object):
     """
     @brief A pool of Db objects.
@@ -78,9 +88,7 @@ class DbPool(object):
         lastChecked = 0
 
         # the pool of named Db objects along with checkFreq and lastCheck time
-
-        # kwargs, checkFreq, lastChecked, Db object
-        self._pool[cName] = [kwargs, checkFreq, lastChecked, None]
+        self._pool[cName] = DbEntry(checkFreq, lastChecked, **kwargs)
 
     def delConn(self, cName):
         """
@@ -104,16 +112,16 @@ class DbPool(object):
         if cName not in self._pool:
             raise DbPoolException(DbPoolException.ENTRY_NOT_FOUND, cName)
 
-        kwargs, checkFreq, lastChecked, db = self._pool[cName]
-        if db is None:
-            db = Db(**kwargs)
-            self._pool[cName][3] = db
-        elif checkFreq != -1:
-            if time() - lastChecked > checkFreq:
+        entry = self._pool[cName]
+        if entry.dbObj is None:
+            entry.dbObj = Db(**entry.kwargs)
+        elif entry.checkFreq != -1:
+            if time() - entry.lastChecked > entry.checkFreq:
                 self._log.debug(
                     "Checking connection for '%s' before executing query.", cName)
+                db = entry.dbObj
                 if not db.isConnected():
                     self._log.debug("Attempting to reconnect for '%s'.", cName)
                     db.connect()
-                self._pool[cName][2] = time()
-        return db
+                entry.lastChecked = time()
+        return entry.dbObj
