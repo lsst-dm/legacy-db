@@ -25,8 +25,6 @@ This is a unittest for the Utils class.
 
 @author  Jacek Becla, SLAC
 
-Known issues and todos:
- * none.
 """
 
 import ConfigParser
@@ -36,7 +34,7 @@ import time
 import unittest
 
 import lsst.log as log
-from lsst.db.utils import readCredentialFile
+from lsst.db.testHelper import readCredentialFile
 
 
 class TestUtils(unittest.TestCase):
@@ -52,7 +50,7 @@ password = 123a
 socket = /tmp/my/socket.sock
 """)
         f.close()
-        dict = readCredentialFile(fN, log)
+        dict = readCredentialFile(fN)
         assert(dict["host"] == "localhost")
         assert(dict["port"] == "3455")
         assert(dict["user"] == "dummyX")

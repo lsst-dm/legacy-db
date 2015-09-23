@@ -1,0 +1,14 @@
+*.pyc
+*~
+core.*
+.sconf_temp
+.sconsign.dblite
+config.log
+doc/doxygen.conf
+doc/html
+doc/xml
+doc/*.tag
+python/lsst/__init__.pyc
+python/lsst/db/version.py
+ups/db.cfgc
+tests/.tests/
