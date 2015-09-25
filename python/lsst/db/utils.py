@@ -38,6 +38,7 @@ from sqlalchemy.exc import DBAPIError, InvalidRequestError, NoSuchModuleError, \
 from sqlalchemy.sql import text
 from sqlalchemy.inspection import inspect
 
+from MySQLdb.constants import FIELD_TYPE
 
 
 # MySQL errors that we are catching
@@ -370,5 +371,19 @@ def userExists(conn, userName, hostName):
         return conn.execute(
             "SELECT COUNT(*) FROM mysql.user WHERE user='%s' AND host='%s'" % \
                 (userName, hostName)).scalar() == 1
+    else:
+        raise NoSuchModuleError(conn.engine.url.get_backend_name())
+
+
+#### Unclassified functions ########################################################
+def typeCode2Name(conn, code):
+    """
+    Convert type code to type name, returns None if there is no mapping.
+    """
+    if conn.engine.url.get_backend_name() == "mysql":
+        for name in dir(FIELD_TYPE):
+            if getattr(FIELD_TYPE, name) == code:
+                return name
+        return None
     else:
         raise NoSuchModuleError(conn.engine.url.get_backend_name())
