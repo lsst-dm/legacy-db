@@ -3,5 +3,6 @@ setupRequired(python)
 setupRequired(mysqlclient)
 setupRequired(mysqlpython)
 setupRequired(sconsUtils)
+setupRequired(sqlalchemy)
 
 envPrepend(PYTHONPATH, ${PRODUCT_DIR}/python)
