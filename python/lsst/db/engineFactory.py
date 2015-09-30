@@ -72,8 +72,7 @@ def getEngineFromFile(fileName,
     Raises IOError if the file does not exists.
     Raises ConfigParser exceptions (such as NoSectionError)
     """
-    if fileName.startswith('~'):
-        fileName = os.path.expanduser(fileName)
+    fileName = os.path.expanduser(fileName)
     parser = ConfigParser()
     parser.readfp(open(fileName), fileName)
     try:

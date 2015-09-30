@@ -53,16 +53,16 @@ class MySqlErr:
     ER_NO_SUCH_TABLE = 1146
 
 
-class NoSuchDatabaseError(InvalidRequestError):
+class NoSuchDatabaseError(ProgrammingError):
     """Database does not exist."""
 
-class InvalidDatabaseNameError(InvalidRequestError):
+class InvalidDatabaseNameError(ProgrammingError):
     """Invalid database name."""
 
-class DatabaseExistsError(InvalidRequestError):
+class DatabaseExistsError(ProgrammingError):
     """Database already exists."""
 
-class TableExistsError(InvalidRequestError):
+class TableExistsError(ProgrammingError):
     """Table already exists."""
 
 #### Database-related functions ####################################################

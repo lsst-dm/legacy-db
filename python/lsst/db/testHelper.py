@@ -90,8 +90,7 @@ def readCredentialFile(fName):
     Raises InvalidOptFileError if the file does not contain requires section.
     """
     ret = {}
-    if fName.startswith('~'):
-        fName = os.path.expanduser(fName)
+    fName = os.path.expanduser(fName)
     if not os.path.isfile(fName):
         raise MissingOptFileError(fName)
     cnf = ConfigParser.ConfigParser()
