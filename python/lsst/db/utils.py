@@ -81,7 +81,8 @@ def createDb(conn, dbName, mayExist=False):
     Note, it will not connect to that database and it will not make it default.
     """
     if dbName is None:
-        raise InvalidDatabaseNameError("None passed as database name")
+        raise InvalidDatabaseNameError("CREATE DATABASE",
+                                       "None passed as database name")
 
     # consider using create_database from helpers:
     # http://sqlalchemy-utils.readthedocs.org/en/latest/database_helpers.html
@@ -91,7 +92,7 @@ def createDb(conn, dbName, mayExist=False):
         except ProgrammingError as e:
             if e.orig.args[0] == MySqlErr.ER_DB_CREATE_EXISTS:
                 if not mayExist:
-                    raise DatabaseExistsError(dbName)
+                    raise DatabaseExistsError("CREATE DATABASE", dbName, e.orig)
             else:
                 raise
     else:
@@ -112,7 +113,7 @@ def useDb(conn, dbName):
             conn.execute("USE `%s`" % dbName)
         except DBAPIError as e:
             if e.orig.args[0] == MySqlErr.ER_BAD_DB_ERROR:
-                raise NoSuchDatabaseError(dbName)
+                raise NoSuchDatabaseError("USE", dbName, e.orig)
             raise
     else:
         raise NoSuchModuleError(conn.engine.url.get_backend_name())
@@ -153,7 +154,7 @@ def dropDb(conn, dbName, mustExist=True):
             conn.execute("DROP DATABASE `%s`" % dbName)
         except DBAPIError as e:
             if e.orig.args[0] == MySqlErr.ER_DB_DROP_EXISTS:
-                raise NoSuchDatabaseError(dbName)
+                raise NoSuchDatabaseError("DROP DATABASE", dbName, e.orig)
             else:
                 raise
     else:
@@ -215,16 +216,16 @@ def createTable(conn, tableName, tableSchema, dbName=None, mayExist=False):
     """
     if conn.engine.url.get_backend_name() == "mysql":
         dbNameStr = "`%s`." % dbName if dbName is not None else ""
+        cmd = "CREATE TABLE %s`%s` %s" % (dbNameStr, tableName, tableSchema)
         try:
-            conn.execute("CREATE TABLE %s`%s` %s" % \
-                        (dbNameStr, tableName, tableSchema))
+            conn.execute(cmd)
         except DBAPIError as e:
             if e.orig.args[0] == MySqlErr.ER_NO_DB_ERROR:
-                raise InvalidDatabaseNameError(dbNameStr)
+                raise InvalidDatabaseNameError(cmd, dbNameStr, e.orig)
             elif e.orig.args[0] == MySqlErr.ER_TABLE_EXISTS_ERROR:
                 if mayExist:
                     return
-                raise TableExistsError(dbNameStr + tableName)
+                raise TableExistsError(cmd, dbNameStr + tableName, e.orig)
             else:
                 raise
     else:

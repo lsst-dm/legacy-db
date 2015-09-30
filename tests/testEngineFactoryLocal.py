@@ -494,13 +494,13 @@ class TestDbLocal(unittest.TestCase):
         f.close()
         conn = getEngineFromFile(self.CREDFILE+".ini").connect()
         loadSqlScript(fN, username=self._user, host=self._host, port=self._port)
-        assertEqual(10, conn.execute("select sum(i) from %s.t" % self._dbA).first()[0])
+        self.assertEqual(10, conn.execute("select sum(i) from %s.t" % self._dbA).first()[0])
         utils.dropDb(conn, self._dbA)
         conn.close()
         os.remove(fN)
 
     def testLoadSqlScriptWithDb(self):
-        f, fN = tempfile.mkstemp(suffix=".csv", True)
+        f, fN = tempfile.mkstemp(suffix=".csv", text=True)
         f = open(fN,'w')
         f.write("create table t(i int, d double);\n")
         f.write("insert into t values (1, 1.1), (2, 2.2);\n")
@@ -509,14 +509,14 @@ class TestDbLocal(unittest.TestCase):
         utils.createDb(conn, self._dbA)
         loadSqlScript(
             fN, username=self._user, host=self._host, port=self._port, db=self._dbA)
-        assertEqual(3, conn.execute("select sum(i) from %s.t" % self._dbA).first()[0])
+        self.assertEqual(3, conn.execute("select sum(i) from %s.t" % self._dbA).first()[0])
         utils.dropDb(conn, self._dbA)
         conn.close()
         os.remove(fN)
 
     def testLoadSqlScriptPlainPassword(self):
         # password is disallowed through loadsqlscript, check on that.
-        f, fN = tempfile.mkstemp(suffix=".csv", True)
+        f, fN = tempfile.mkstemp(suffix=".csv", text=True)
         conn = getEngineFromArgs(
             username=self._user, password=self._pass,
             host=self._host, port=self._port).connect()
@@ -545,8 +545,8 @@ class TestDbLocal(unittest.TestCase):
         utils.createTable(conn, "t1", "(i int)")
         conn.execute("LOAD DATA LOCAL INFILE '%s' INTO TABLE t1" % fN)
         x = conn.execute("SELECT COUNT(*) FROM t1")
-        assertEqual(8, conn.execute("SELECT COUNT(*) FROM t1").first()[0])
-        assertEqual(3, conn.execute("SELECT COUNT(*) FROM t1 WHERE i=4").first()[0])
+        self.assertEqual(8, conn.execute("SELECT COUNT(*) FROM t1").first()[0])
+        self.assertEqual(3, conn.execute("SELECT COUNT(*) FROM t1 WHERE i=4").first()[0])
 
         # let's add some confusing data to the loaded file, it will get truncated
         f = open(fN,'w')

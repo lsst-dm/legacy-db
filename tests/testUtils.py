@@ -51,11 +51,11 @@ socket = /tmp/my/socket.sock
 """)
         f.close()
         dict = readCredentialFile(fN)
-        assertEqual(dict["host"], "localhost")
-        assertEqual(dict["port"], "3455")
-        assertEqual(dict["user"], "dummyX")
-        assertEqual(dict["passwd"], "123a")
-        assertEqual(dict["unix_socket"], "/tmp/my/socket.sock")
+        self.assertEqual(dict["host"], "localhost")
+        self.assertEqual(dict["port"], "3455")
+        self.assertEqual(dict["user"], "dummyX")
+        self.assertEqual(dict["passwd"], "123a")
+        self.assertEqual(dict["unix_socket"], "/tmp/my/socket.sock")
         os.remove(fN)
 
 ####################################################################################
