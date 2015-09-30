@@ -39,7 +39,7 @@ from lsst.db.testHelper import readCredentialFile
 
 class TestUtils(unittest.TestCase):
     def testReadCredF(self):
-        f, fN = tempfile.mkstemp(suffix=".cnf", dir="/tmp", text="True")
+        f, fN = tempfile.mkstemp(suffix=".cnf", text=True)
         f = open(fN,'w')
         f.write("""
 [mysql]
@@ -51,11 +51,11 @@ socket = /tmp/my/socket.sock
 """)
         f.close()
         dict = readCredentialFile(fN)
-        assert(dict["host"] == "localhost")
-        assert(dict["port"] == "3455")
-        assert(dict["user"] == "dummyX")
-        assert(dict["passwd"] == "123a")
-        assert(dict["unix_socket"] == "/tmp/my/socket.sock")
+        self.assertEqual(dict["host"], "localhost")
+        self.assertEqual(dict["port"], "3455")
+        self.assertEqual(dict["user"], "dummyX")
+        self.assertEqual(dict["passwd"], "123a")
+        self.assertEqual(dict["unix_socket"], "/tmp/my/socket.sock")
         os.remove(fN)
 
 ####################################################################################
