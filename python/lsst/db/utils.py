@@ -28,14 +28,10 @@ in particular these that are specific to different drivers.
 
 # standard library
 import logging as log
-import re
-import os
 
 # third party
-import sqlalchemy
-from sqlalchemy.exc import DBAPIError, InvalidRequestError, NoSuchModuleError, \
+from sqlalchemy.exc import DBAPIError, NoSuchModuleError, \
                            NoSuchTableError, OperationalError, ProgrammingError
-from sqlalchemy.sql import text
 from sqlalchemy.inspection import inspect
 
 from MySQLdb.constants import FIELD_TYPE
@@ -168,7 +164,7 @@ def listDbs(conn):
 
     Raises sqlalchemy exceptions.
     """
-    return inspect(engine).get_schema_names()
+    return inspect(conn).get_schema_names()
 
 
 #### Table-related functions #######################################################

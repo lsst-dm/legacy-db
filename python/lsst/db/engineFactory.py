@@ -78,10 +78,10 @@ def getEngineFromFile(fileName,
     try:
         options = dict(parser.items("database"))
     except NoSectionError:
-        log.error("File %s does not contain section 'database'" % fileName)
+        log.error("File %s does not contain section 'database'", fileName)
         raise
 
-    if drivername or username or password or host or port or database:
+    if drivername or username or password or host or port or database or query:
         url = make_url(options['url'])
         if drivername:
             url.drivername = drivername
@@ -95,6 +95,8 @@ def getEngineFromFile(fileName,
             url.port = port
         if database:
             url.database = database
+        if query:
+            url.query = query
         options['url'] = url
 
     return sqlalchemy.engine_from_config(options, "")
