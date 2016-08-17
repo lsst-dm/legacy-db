@@ -55,7 +55,10 @@ Known issues and todos:
 """
 
 # standard library
-from ConfigParser import NoSectionError
+try:
+    from ConfigParser import NoSectionError
+except ImportError:
+    from configparser import NoSectionError
 import logging as log
 import os
 import tempfile
@@ -77,7 +80,7 @@ class TestDbLocal(unittest.TestCase):
     def setUp(self):
         dict = readCredentialFile(self.CREDFILE+".mysql")
         (self._sock, self._host, self._port, self._user, self._pass) = \
-           [dict.get(k, None) for k in (
+            [dict.get(k, None) for k in (
                 'unix_socket', 'host', 'port', 'user', 'password')]
         if self._pass is None:
             self._pass = ''
@@ -89,9 +92,12 @@ class TestDbLocal(unittest.TestCase):
             username=self._user, password=self._pass, host=self._host,
             port=self._port, query={"unix_socket": self._sock}).connect()
 
-        if utils.dbExists(conn, self._dbA): utils.dropDb(conn, self._dbA)
-        if utils.dbExists(conn, self._dbB): utils.dropDb(conn, self._dbB)
-        if utils.dbExists(conn, self._dbC): utils.dropDb(conn, self._dbC)
+        if utils.dbExists(conn, self._dbA):
+            utils.dropDb(conn, self._dbA)
+        if utils.dbExists(conn, self._dbB):
+            utils.dropDb(conn, self._dbB)
+        if utils.dbExists(conn, self._dbC):
+            utils.dropDb(conn, self._dbC)
         conn.close()
 
     def testGetEngine(self):
@@ -142,7 +148,7 @@ class TestDbLocal(unittest.TestCase):
         """
         conn = getEngineFromArgs(
             username=self._user, password=self._pass,
-            query={"unix_socket":self._sock}).connect()
+            query={"unix_socket": self._sock}).connect()
         utils.createDb(conn, self._dbA)
         utils.useDb(conn, self._dbA)
         utils.createTable(conn, "t1", "(i int)")
@@ -152,7 +158,7 @@ class TestDbLocal(unittest.TestCase):
     def testUseDb(self):
         conn = getEngineFromArgs(
             username=self._user, password=self._pass,
-            query={"unix_socket":self._sock}).connect()
+            query={"unix_socket": self._sock}).connect()
         utils.createDb(conn, self._dbA)
         utils.useDb(conn, self._dbA)
         utils.createTable(conn, "t1", "(i int)")
@@ -232,7 +238,7 @@ class TestDbLocal(unittest.TestCase):
         self.assertRaises(NoSectionError, getEngineFromFile, fN)
 
         # add socket only
-        f = open(fN,'w')
+        f = open(fN, 'w')
         f.write('[client]\n')
         f.write('socket = /tmp/sth/wrong.sock\n')
         f.close()
@@ -272,8 +278,8 @@ class TestDbLocal(unittest.TestCase):
         utils.createTable(conn, "t2", "(i int)", self._dbA)
         ret = utils.listTables(conn, self._dbA)
         self.assertEqual(len(ret), 2)
-        self.assertTrue("t1" in ret)
-        self.assertTrue("t2" in ret)
+        self.assertIn("t1", ret)
+        self.assertIn("t2", ret)
         ret = utils.listTables(conn, self._dbB)
         self.assertEqual(len(ret), 0)
 
@@ -283,8 +289,8 @@ class TestDbLocal(unittest.TestCase):
             database=self._dbA).connect()
         ret = utils.listTables(conn)
         self.assertEqual(len(ret), 2)
-        self.assertTrue("t1" in ret)
-        self.assertTrue("t2" in ret)
+        self.assertIn("t1", ret)
+        self.assertIn("t2", ret)
         utils.dropDb(conn, self._dbA)
 
     def testResults(self):
@@ -314,7 +320,6 @@ class TestDbLocal(unittest.TestCase):
         self.assertRaises(utils.TableExistsError, utils.createTable, conn, "t1", "(i int)")
         utils.dropDb(conn, self._dbA)
 
-
     def testDropDb(self):
         conn = getEngineFromArgs(
             username=self._user, password=self._pass, host=self._host,
@@ -324,7 +329,6 @@ class TestDbLocal(unittest.TestCase):
         utils.dropDb(conn, self._dbA, mustExist=False)
         self.assertRaises(utils.NoSuchDatabaseError, utils.dropDb, conn, self._dbA)
         conn.close()
-
 
     def testMultiCreateNonDef(self):
         """
@@ -476,7 +480,7 @@ class TestDbLocal(unittest.TestCase):
             username=self._user, password=self._pass, host=self._host,
             port=self._port, query={"unix_socket": self._sock}).connect()
         utils.createDb(conn, self._dbA)
-        #time.sleep(10)
+        # time.sleep(10)
         # ##########################################################################
         # FIXME!!! now getting (OperationalError) (2006, 'MySQL server has gone away
         # ##########################################################################
@@ -486,7 +490,7 @@ class TestDbLocal(unittest.TestCase):
 
     def testLoadSqlScriptNoDb(self):
         f, fN = tempfile.mkstemp(suffix=".csv", text=True)
-        f = open(fN,'w')
+        f = open(fN, 'w')
         f.write("create database %s;\n" % self._dbA)
         f.write("use %s;\n" % self._dbA)
         f.write("create table t(i int);\n")
@@ -501,7 +505,7 @@ class TestDbLocal(unittest.TestCase):
 
     def testLoadSqlScriptWithDb(self):
         f, fN = tempfile.mkstemp(suffix=".csv", text=True)
-        f = open(fN,'w')
+        f = open(fN, 'w')
         f.write("create table t(i int, d double);\n")
         f.write("insert into t values (1, 1.1), (2, 2.2);\n")
         f.close()
@@ -533,7 +537,7 @@ class TestDbLocal(unittest.TestCase):
         Testing "LOAD DATA INFILE..."
         """
         f, fN = tempfile.mkstemp(suffix=".csv", text=True)
-        f = open(fN,'w')
+        f = open(fN, 'w')
         f.write('1\n2\n3\n4\n4\n4\n5\n3\n')
         f.close()
 
@@ -549,7 +553,7 @@ class TestDbLocal(unittest.TestCase):
         self.assertEqual(3, conn.execute("SELECT COUNT(*) FROM t1 WHERE i=4").first()[0])
 
         # let's add some confusing data to the loaded file, it will get truncated
-        f = open(fN,'w')
+        f = open(fN, 'w')
         f.write('11,12,13,14\n2')
         f.close()
         conn.execute("LOAD DATA LOCAL INFILE '%s' INTO TABLE t1" % fN)
@@ -559,6 +563,7 @@ class TestDbLocal(unittest.TestCase):
         os.remove(fN)
 
 ####################################################################################
+
 
 def main():
     log.basicConfig(

@@ -24,9 +24,11 @@ This module contains functions used by testEngineFactory*.py
 @author  Jacek Becla, SLAC
 """
 
-
 # standard library
-import ConfigParser
+try:
+    import ConfigParser as configparser
+except ImportError:
+    import configparser
 import logging as log
 import os
 import subprocess
@@ -38,11 +40,14 @@ from sqlalchemy.exc import InvalidRequestError
 class MissingOptFileError(InvalidRequestError):
     """Missing option file."""
 
+
 class InvalidOptFileError(InvalidRequestError):
     """Invalid option file."""
 
+
 class PasswordNotAllowedError(InvalidRequestError):
     """Password is not allowed."""
+
 
 class CannotExecuteScriptError(InvalidRequestError):
     """Cannot execute script."""
@@ -51,18 +56,18 @@ class CannotExecuteScriptError(InvalidRequestError):
 # Note: 'read_default_group' is not supported, since it can cause
 # the MySQLdb driver and the mysql executable to connect differently.
 connectArgToOptionMap = {
-    'host':              'host',
-    'user':              'user',
-    'passwd':            'password',
-    'db':                'database',
-    'port':              'port',
-    'unix_socket':       'socket',
-    'connect_timeout':   'connect_timeout',
-    'compress':          'compress',
-    'named_pipe':        'pipe',
+    'host': 'host',
+    'user': 'user',
+    'passwd': 'password',
+    'db': 'database',
+    'port': 'port',
+    'unix_socket': 'socket',
+    'connect_timeout': 'connect_timeout',
+    'compress': 'compress',
+    'named_pipe': 'pipe',
     'read_default_file': 'defaults-file',
-    'charset':           'default-character-set',
-    'local_infile':      'local-infile'
+    'charset': 'default-character-set',
+    'local_infile': 'local-infile'
 }
 
 ####################################################################################
@@ -70,10 +75,10 @@ connectArgToOptionMap = {
 # Map of mysql executable option names to MySQLdb driver connect() keywords.
 # Note: 'read_default_group' is not supported, since it can cause
 # the MySQLdb driver and the mysql executable to connect differently.
-optionToConnectArgMap = \
-    dict((v, k) for (k, v) in connectArgToOptionMap.iteritems())
+optionToConnectArgMap = {v: k for k, v in connectArgToOptionMap.items()}
 
 ####################################################################################
+
 
 def readCredentialFile(fName):
     """
@@ -93,7 +98,7 @@ def readCredentialFile(fName):
     fName = os.path.expanduser(fName)
     if not os.path.isfile(fName):
         raise MissingOptFileError(fName)
-    cnf = ConfigParser.ConfigParser()
+    cnf = configparser.ConfigParser()
     cnf.read(fName)
 
     theSection = "mysql"
@@ -106,6 +111,7 @@ def readCredentialFile(fName):
     return ret
 
 ####################################################################################
+
 
 def loadSqlScript(scriptPath, **kwargs):
     """
@@ -126,7 +132,7 @@ def loadSqlScript(scriptPath, **kwargs):
         raise PasswordNotAllowedError()
     connectArgs = kwargs.copy()
     if "read_default_group" in connectArgs:   # remove option that is not valid
-        connectArgs.pop("read_default_group") # for MySQL client program
+        connectArgs.pop("read_default_group")  # for MySQL client program
     if "host" in connectArgs and connectArgs["host"] == "localhost":
         connectArgs["host"] = "127.0.0.1"
     mysqlArgs = ["mysql"]
@@ -144,8 +150,7 @@ def loadSqlScript(scriptPath, **kwargs):
             else:
                 mysqlArgs.append(s)
     dbInfo = " into db '%s'." % kwargs["db"] if "db" in kwargs else ""
-    log.debug("Loading script %s%s. Args are: %s", scriptPath, dbInfo,
-              str(mysqlArgs))
+    log.debug("Loading script %s%s. Args are: %s", scriptPath, dbInfo, mysqlArgs)
     with open(scriptPath) as scriptFile:
         if subprocess.call(mysqlArgs, stdin=scriptFile) != 0:
             msg = "Failed to execute %s < %s" % (connectArgs, scriptPath)

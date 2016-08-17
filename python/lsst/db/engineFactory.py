@@ -27,7 +27,11 @@ This module exposes engine from SQLAlchemy.
 """
 
 # standard library imports
-from ConfigParser import ConfigParser, NoSectionError
+try:
+    from ConfigParser import ConfigParser, NoSectionError
+except ImportError:
+    from configparser import ConfigParser, NoSectionError
+
 import logging as log
 import os
 
@@ -102,6 +106,7 @@ def getEngineFromFile(fileName,
     return sqlalchemy.engine_from_config(options, "")
 
 ####################################################################################
+
 
 def getEngineFromArgs(drivername="mysql+mysqldb",
                       username=None,

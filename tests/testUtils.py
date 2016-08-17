@@ -27,10 +27,8 @@ This is a unittest for the Utils class.
 
 """
 
-import ConfigParser
 import os
 import tempfile
-import time
 import unittest
 
 import lsst.log as log
@@ -38,9 +36,10 @@ from lsst.db.testHelper import readCredentialFile
 
 
 class TestUtils(unittest.TestCase):
+
     def testReadCredF(self):
         f, fN = tempfile.mkstemp(suffix=".cnf", text=True)
-        f = open(fN,'w')
+        f = open(fN, 'w')
         f.write("""
 [mysql]
 host = localhost
@@ -59,6 +58,8 @@ socket = /tmp/my/socket.sock
         os.remove(fN)
 
 ####################################################################################
+
+
 def main():
     unittest.main()
 
