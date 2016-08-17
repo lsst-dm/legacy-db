@@ -23,13 +23,12 @@ This module contains functions used by testEngineFactory*.py
 
 @author  Jacek Becla, SLAC
 """
-from future import standard_library
-standard_library.install_aliases()
-from builtins import str
-
 
 # standard library
-import configparser
+try:
+    import ConfigParser as configparser
+except ImportError:
+    import configparser
 import logging as log
 import os
 import subprocess
@@ -76,8 +75,7 @@ connectArgToOptionMap = {
 # Map of mysql executable option names to MySQLdb driver connect() keywords.
 # Note: 'read_default_group' is not supported, since it can cause
 # the MySQLdb driver and the mysql executable to connect differently.
-optionToConnectArgMap = \
-    dict((v, k) for (k, v) in connectArgToOptionMap.items())
+optionToConnectArgMap = {v: k for k, v in connectArgToOptionMap.items()}
 
 ####################################################################################
 
@@ -152,8 +150,7 @@ def loadSqlScript(scriptPath, **kwargs):
             else:
                 mysqlArgs.append(s)
     dbInfo = " into db '%s'." % kwargs["db"] if "db" in kwargs else ""
-    log.debug("Loading script %s%s. Args are: %s", scriptPath, dbInfo,
-              str(mysqlArgs))
+    log.debug("Loading script %s%s. Args are: %s", scriptPath, dbInfo, mysqlArgs)
     with open(scriptPath) as scriptFile:
         if subprocess.call(mysqlArgs, stdin=scriptFile) != 0:
             msg = "Failed to execute %s < %s" % (connectArgs, scriptPath)

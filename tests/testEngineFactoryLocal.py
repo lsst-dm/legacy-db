@@ -53,11 +53,12 @@ Known issues and todos:
  * restarting server test - it'd be best to restart it for real (without blocking
    on user input.
 """
-from future import standard_library
-standard_library.install_aliases()
 
 # standard library
-from configparser import NoSectionError
+try:
+    from ConfigParser import NoSectionError
+except ImportError:
+    from configparser import NoSectionError
 import logging as log
 import os
 import tempfile
