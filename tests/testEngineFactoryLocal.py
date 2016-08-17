@@ -275,8 +275,8 @@ class TestDbLocal(unittest.TestCase):
         utils.createTable(conn, "t2", "(i int)", self._dbA)
         ret = utils.listTables(conn, self._dbA)
         self.assertEqual(len(ret), 2)
-        self.assertTrue("t1" in ret)
-        self.assertTrue("t2" in ret)
+        self.assertIn("t1", ret)
+        self.assertIn("t2", ret)
         ret = utils.listTables(conn, self._dbB)
         self.assertEqual(len(ret), 0)
 
@@ -286,8 +286,8 @@ class TestDbLocal(unittest.TestCase):
             database=self._dbA).connect()
         ret = utils.listTables(conn)
         self.assertEqual(len(ret), 2)
-        self.assertTrue("t1" in ret)
-        self.assertTrue("t2" in ret)
+        self.assertIn("t1", ret)
+        self.assertIn("t2", ret)
         utils.dropDb(conn, self._dbA)
 
     def testResults(self):
