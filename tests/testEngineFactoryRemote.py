@@ -80,9 +80,12 @@ class TestDbRemote(unittest.TestCase):
         conn = getEngineFromArgs(
             username=self._user, password=self._pass,
             host=self._host, port=self._port).connect()
-        if utils.dbExists(conn, self._dbA): utils.dropDb(conn, self._dbA)
-        if utils.dbExists(conn, self._dbB): utils.dropDb(conn, self._dbB)
-        if utils.dbExists(conn, self._dbC): utils.dropDb(conn, self._dbC)
+        if utils.dbExists(conn, self._dbA):
+            utils.dropDb(conn, self._dbA)
+        if utils.dbExists(conn, self._dbB):
+            utils.dropDb(conn, self._dbB)
+        if utils.dbExists(conn, self._dbC):
+            utils.dropDb(conn, self._dbC)
         conn.close()
 
     def testBasicHostPortConn(self):
@@ -121,7 +124,7 @@ class TestDbRemote(unittest.TestCase):
 
     def testConn_invalidPortNo(self):
         engine = getEngineFromArgs(
-            username=self._user, password=self._pass, host=self._host,port=987654)
+            username=self._user, password=self._pass, host=self._host, port=987654)
         self.assertRaises(sqlalchemy.exc.OperationalError, engine.connect)
 
     def testConn_wrongPortNo(self):
@@ -169,6 +172,8 @@ class TestDbRemote(unittest.TestCase):
         conn.close()
 
 ####################################################################################
+
+
 def main():
     log.basicConfig(
         format='%(asctime)s %(name)s %(levelname)s: %(message)s',

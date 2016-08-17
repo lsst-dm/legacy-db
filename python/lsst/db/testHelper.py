@@ -38,11 +38,14 @@ from sqlalchemy.exc import InvalidRequestError
 class MissingOptFileError(InvalidRequestError):
     """Missing option file."""
 
+
 class InvalidOptFileError(InvalidRequestError):
     """Invalid option file."""
 
+
 class PasswordNotAllowedError(InvalidRequestError):
     """Password is not allowed."""
+
 
 class CannotExecuteScriptError(InvalidRequestError):
     """Cannot execute script."""
@@ -51,18 +54,18 @@ class CannotExecuteScriptError(InvalidRequestError):
 # Note: 'read_default_group' is not supported, since it can cause
 # the MySQLdb driver and the mysql executable to connect differently.
 connectArgToOptionMap = {
-    'host':              'host',
-    'user':              'user',
-    'passwd':            'password',
-    'db':                'database',
-    'port':              'port',
-    'unix_socket':       'socket',
-    'connect_timeout':   'connect_timeout',
-    'compress':          'compress',
-    'named_pipe':        'pipe',
+    'host': 'host',
+    'user': 'user',
+    'passwd': 'password',
+    'db': 'database',
+    'port': 'port',
+    'unix_socket': 'socket',
+    'connect_timeout': 'connect_timeout',
+    'compress': 'compress',
+    'named_pipe': 'pipe',
     'read_default_file': 'defaults-file',
-    'charset':           'default-character-set',
-    'local_infile':      'local-infile'
+    'charset': 'default-character-set',
+    'local_infile': 'local-infile'
 }
 
 ####################################################################################
@@ -74,6 +77,7 @@ optionToConnectArgMap = \
     dict((v, k) for (k, v) in connectArgToOptionMap.iteritems())
 
 ####################################################################################
+
 
 def readCredentialFile(fName):
     """
@@ -107,6 +111,7 @@ def readCredentialFile(fName):
 
 ####################################################################################
 
+
 def loadSqlScript(scriptPath, **kwargs):
     """
     Load sql script from the file <scriptPath> into database <dbName>.
@@ -126,7 +131,7 @@ def loadSqlScript(scriptPath, **kwargs):
         raise PasswordNotAllowedError()
     connectArgs = kwargs.copy()
     if "read_default_group" in connectArgs:   # remove option that is not valid
-        connectArgs.pop("read_default_group") # for MySQL client program
+        connectArgs.pop("read_default_group")  # for MySQL client program
     if "host" in connectArgs and connectArgs["host"] == "localhost":
         connectArgs["host"] = "127.0.0.1"
     mysqlArgs = ["mysql"]

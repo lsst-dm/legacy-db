@@ -31,7 +31,7 @@ import logging as log
 
 # third party
 from sqlalchemy.exc import DBAPIError, NoSuchModuleError, \
-                           NoSuchTableError, OperationalError, ProgrammingError
+    NoSuchTableError, OperationalError, ProgrammingError
 from sqlalchemy.inspection import inspect
 
 from MySQLdb.constants import FIELD_TYPE
@@ -52,16 +52,21 @@ class MySqlErr:
 class NoSuchDatabaseError(ProgrammingError):
     """Database does not exist."""
 
+
 class InvalidDatabaseNameError(ProgrammingError):
     """Invalid database name."""
 
+
 class DatabaseExistsError(ProgrammingError):
     """Database already exists."""
+
 
 class TableExistsError(ProgrammingError):
     """Table already exists."""
 
 #### Database-related functions ####################################################
+
+
 def createDb(conn, dbName, mayExist=False):
     """
     Create database <dbName>.
@@ -93,6 +98,7 @@ def createDb(conn, dbName, mayExist=False):
                 raise
     else:
         raise NoSuchModuleError(conn.engine.url.get_backend_name())
+
 
 def useDb(conn, dbName):
     """
@@ -155,6 +161,7 @@ def dropDb(conn, dbName, mustExist=True):
                 raise
     else:
         raise NoSuchModuleError(conn.engine.url.get_backend_name())
+
 
 def listDbs(conn):
     """
@@ -348,7 +355,7 @@ def isView(conn, tableName, dbName=None):
     if conn.engine.url.get_backend_name() == "mysql":
         dbNameStr = "'%s'" % dbName if dbName is not None else "DATABASE()"
         rows = conn.execute("SELECT table_type FROM information_schema.tables "
-               "WHERE table_schema=%s AND table_name='%s'" % (dbNameStr, tableName))
+                            "WHERE table_schema=%s AND table_name='%s'" % (dbNameStr, tableName))
         row = rows.first()
         if not row:
             return False
@@ -366,8 +373,8 @@ def userExists(conn, userName, hostName):
     """
     if conn.engine.url.get_backend_name() == "mysql":
         return conn.execute(
-            "SELECT COUNT(*) FROM mysql.user WHERE user='%s' AND host='%s'" % \
-                (userName, hostName)).scalar() == 1
+            "SELECT COUNT(*) FROM mysql.user WHERE user='%s' AND host='%s'" %
+            (userName, hostName)).scalar() == 1
     else:
         raise NoSuchModuleError(conn.engine.url.get_backend_name())
 
