@@ -2,7 +2,7 @@ setupRequired(log)
 setupRequired(python)
 setupRequired(python_future)
 setupRequired(mariadbclient)
-setupRequired(mysqlpython)
+setupRequired(python_mysqlclient)
 setupRequired(sconsUtils)
 setupRequired(sqlalchemy)
 
