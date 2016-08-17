@@ -25,9 +25,11 @@ This module exposes engine from SQLAlchemy.
 
 @author  Jacek Becla, SLAC
 """
+from future import standard_library
+standard_library.install_aliases()
 
 # standard library imports
-from ConfigParser import ConfigParser, NoSectionError
+from configparser import ConfigParser, NoSectionError
 import logging as log
 import os
 

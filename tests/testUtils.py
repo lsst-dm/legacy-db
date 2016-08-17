@@ -27,10 +27,8 @@ This is a unittest for the Utils class.
 
 """
 
-import ConfigParser
 import os
 import tempfile
-import time
 import unittest
 
 import lsst.log as log

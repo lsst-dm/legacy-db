@@ -23,10 +23,13 @@ This module contains functions used by testEngineFactory*.py
 
 @author  Jacek Becla, SLAC
 """
+from future import standard_library
+standard_library.install_aliases()
+from builtins import str
 
 
 # standard library
-import ConfigParser
+import configparser
 import logging as log
 import os
 import subprocess
@@ -74,7 +77,7 @@ connectArgToOptionMap = {
 # Note: 'read_default_group' is not supported, since it can cause
 # the MySQLdb driver and the mysql executable to connect differently.
 optionToConnectArgMap = \
-    dict((v, k) for (k, v) in connectArgToOptionMap.iteritems())
+    dict((v, k) for (k, v) in connectArgToOptionMap.items())
 
 ####################################################################################
 
@@ -97,7 +100,7 @@ def readCredentialFile(fName):
     fName = os.path.expanduser(fName)
     if not os.path.isfile(fName):
         raise MissingOptFileError(fName)
-    cnf = ConfigParser.ConfigParser()
+    cnf = configparser.ConfigParser()
     cnf.read(fName)
 
     theSection = "mysql"
