@@ -84,7 +84,7 @@ def createDb(conn, dbName, mayExist=False):
     """
     if dbName is None:
         raise InvalidDatabaseNameError("CREATE DATABASE",
-                                       "None passed as database name")
+                                       "None passed as database name", None)
 
     # consider using create_database from helpers:
     # http://sqlalchemy-utils.readthedocs.org/en/latest/database_helpers.html
@@ -258,11 +258,11 @@ def createTableLike(conn, dbName, tableName, templDb, templTable):
             conn.execute(query)
         except OperationalError as e:
             if e.orig.args[0] == MySqlErr.ER_TABLE_EXISTS_ERROR:
-                raise TableExistsError(dbName + '.' + tableName)
+                raise TableExistsError("CREATE TABLE LIKE", dbName + '.' + tableName, e.orig)
             raise
         except ProgrammingError as e:
             if e.orig.args[0] == MySqlErr.ER_NO_SUCH_TABLE:
-                raise NoSuchTableError(templTable)
+                raise NoSuchTableError("CREATE TABLE LIKE", templTable, e.orig)
             raise
     else:
         raise NoSuchModuleError(conn.engine.url.get_backend_name())
@@ -285,7 +285,7 @@ def createTableFromSchema(conn, schema):
         except OperationalError as exc:
             log.error('Exception when creating table: %s', exc)
             if exc.orig.args[0] == MySqlErr.ER_TABLE_EXISTS_ERROR:
-                raise TableExistsError()
+                raise TableExistsError("CREATE TABLE", "<FROM SCHEMA>", exc.orig)
             raise
     else:
         raise NoSuchModuleError(conn.engine.url.get_backend_name())
@@ -326,7 +326,7 @@ def listTables(conn, dbName=None):
 
     Raises sqlalchemy exceptions.
     """
-    if dbName == None:
+    if dbName is None:
         dbName = conn.engine.url.database
 
     # consider using inspector.get_table_names(). Issue: it needs to connect
