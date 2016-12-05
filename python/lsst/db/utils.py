@@ -29,12 +29,14 @@ from builtins import object
 
 # standard library
 import logging as log
+import subprocess
 
 # third party
 from sqlalchemy.exc import DBAPIError, NoSuchModuleError, \
     NoSuchTableError, OperationalError, ProgrammingError
 from sqlalchemy.inspection import inspect
 
+# TODO: explicit dependency on MySQLdb, should get rid of this
 from MySQLdb.constants import FIELD_TYPE
 
 
@@ -378,6 +380,51 @@ def userExists(conn, userName, hostName):
             (userName, hostName)).scalar() == 1
     else:
         raise NoSuchModuleError(conn.engine.url.get_backend_name())
+
+#### SQL scripts handling ########################################################
+
+def loadSqlScript(conn, script, dbName=None):
+    """
+    Execute SQL from a given file.
+
+    Throws exception in case of any errors.
+
+    @param conn        Database connection or engine.
+    @param script      File object (object with read() method) or file name.
+    @param dbName      Optional name of the database, if specified then overrides
+                       database used by connection/engine.
+    """
+
+    # check file, if it has 'read' attribute assume it's a file object
+    if not hasattr(script, 'read'):
+        script = open(script)
+
+    url = conn.engine.url
+    if url.get_backend_name() == "mysql":
+
+        # build command line, do not use any defaults
+        cmd = ['mysql', '--no-defaults', '--batch', '--quick']
+        if url.host:
+            cmd.append('--host=' + url.host)
+        if url.port:
+            cmd.append('--port=' + str(url.port))
+        socket = url.query.get('unix_socket')
+        if socket:
+            cmd.append('--socket=' + socket)
+        if url.username:
+            cmd.append('--user=' + url.username)
+        if url.password:
+            cmd.append('--password=' + url.password)
+        if not dbName:
+            dbName = url.database
+        if dbName:
+            cmd.append('--database=' + dbName)
+
+        # it will throw on errors
+        subprocess.check_call(cmd, stdin=script)
+
+    else:
+        raise NoSuchModuleError(url.get_backend_name())
 
 
 #### Unclassified functions ########################################################

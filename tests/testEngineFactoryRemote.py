@@ -26,20 +26,8 @@ remote server connections.
 
 The test requires credential file ~/.lsst/dbAuth-testRemote.ini with the following:
 
-[url]
-drivername  = <driverName>
-username    = <userName>
-password    = <password>
-host        = <host>
-port        = <port>
-
-and ~/.lsst/dbAuth-testRemote.mysql with:
-
-[mysql]
-user     = <userName>
-passwd   = <passwd> # this is optional
-host     = <host>
-port     = <port>
+[database]
+url = mysql+mysqldb://<userName>:<password>@127.0.0.1:13306/
 
 It is sufficient if the user has normal privileges.
 
@@ -51,8 +39,6 @@ It is sufficient if the user has normal privileges.
 # standard library
 import logging as log
 import os
-import tempfile
-import time
 import unittest
 
 # third party
@@ -61,25 +47,18 @@ import sqlalchemy
 # local
 from lsst.db.engineFactory import getEngineFromFile, getEngineFromArgs
 from lsst.db import utils
-from lsst.db.testHelper import readCredentialFile
 
 
 class TestDbRemote(unittest.TestCase):
-    CREDFILE = "~/.lsst/dbAuth-testRemote"
+    CREDFILE = "~/.lsst/dbAuth-testRemote.ini"
 
     def setUp(self):
-        dict = readCredentialFile(self.CREDFILE+".mysql")
-        (self._host, self._port, self._user, self._pass) = \
-            [dict[k] for k in ('host', 'port', 'user', 'passwd')]
-        if self._pass is None:
-            self._pass = ''
-        self._dbA = "%s_dbWrapperTestDb_A" % self._user
-        self._dbB = "%s_dbWrapperTestDb_B" % self._user
-        self._dbC = "%s_dbWrapperTestDb_C" % self._user
+        self._engine = getEngineFromFile(self.CREDFILE)
+        self._dbA = "%s_dbWrapperTestDb_A" % self._engine.url.username
+        self._dbB = "%s_dbWrapperTestDb_B" % self._engine.url.username
+        self._dbC = "%s_dbWrapperTestDb_C" % self._engine.url.username
 
-        conn = getEngineFromArgs(
-            username=self._user, password=self._pass,
-            host=self._host, port=self._port).connect()
+        conn = self._engine.connect()
         if utils.dbExists(conn, self._dbA):
             utils.dropDb(conn, self._dbA)
         if utils.dbExists(conn, self._dbB):
@@ -88,22 +67,23 @@ class TestDbRemote(unittest.TestCase):
             utils.dropDb(conn, self._dbC)
         conn.close()
 
-    def testBasicHostPortConn(self):
-        """
-        Basic test: connect through port, create db and connect to it, create one
-        table, drop the db, disconnect.
-        """
-        conn = getEngineFromArgs(
-            username=self._user, password=self._pass,
-            host=self._host, port=self._port).connect()
+    def testBasicOptionFileConn(self):
+        conn = self._engine.connect()
         utils.createDb(conn, self._dbA)
         utils.useDb(conn, self._dbA)
         utils.createTable(conn, "t1", "(i int)")
         utils.dropDb(conn, self._dbA)
         conn.close()
 
-    def testBasicOptionFileConn(self):
-        conn = getEngineFromFile(self.CREDFILE+".ini").connect()
+    def testGetEngineFromArgs(self):
+        url = self._engine.url
+        conn = getEngineFromArgs(drivername=url.drivername,
+                                 username=url.username,
+                                 password=url.password,
+                                 host=url.host,
+                                 port=url.port,
+                                 database=url.database,
+                                 query=url.query).connect()
         utils.createDb(conn, self._dbA)
         utils.useDb(conn, self._dbA)
         utils.createTable(conn, "t1", "(i int)")
@@ -111,26 +91,19 @@ class TestDbRemote(unittest.TestCase):
         conn.close()
 
     def testConn_invalidHost1(self):
-        engine = getEngineFromArgs(
-            username=self._user, password=self._pass,
-            host="invalidHost", port=self._port)
+        engine = getEngineFromFile(self.CREDFILE, host="invalidHost")
         self.assertRaises(sqlalchemy.exc.OperationalError, engine.connect)
 
     def testConn_invalidHost2(self):
-        engine = getEngineFromArgs(
-            username=self._user, password=self._pass,
-            host="dummyHost", port=3036)
+        engine = getEngineFromFile(self.CREDFILE, host="dummyHost", port=3036)
         self.assertRaises(sqlalchemy.exc.OperationalError, engine.connect)
 
     def testConn_invalidPortNo(self):
-        engine = getEngineFromArgs(
-            username=self._user, password=self._pass, host=self._host, port=987654)
+        engine = getEngineFromFile(self.CREDFILE, port=987654)
         self.assertRaises(sqlalchemy.exc.OperationalError, engine.connect)
 
     def testConn_wrongPortNo(self):
-        engine = getEngineFromArgs(
-            username=self._user, password=self._pass,
-            host=self._host, port=1579)
+        engine = getEngineFromFile(self.CREDFILE, port=1579)
         self.assertRaises(sqlalchemy.exc.OperationalError, engine.connect)
 
     def testConn_invalidUserName(self):
@@ -142,9 +115,7 @@ class TestDbRemote(unittest.TestCase):
         """
         Test checkExist for databases and tables.
         """
-        conn = getEngineFromArgs(
-            username=self._user, password=self._pass,
-            host=self._host, port=self._port).connect()
+        conn = self._engine.connect()
         self.assertFalse(utils.dbExists(conn, "bla"))
         self.assertFalse(utils.tableExists(conn, "bla"))
         self.assertFalse(utils.tableExists(conn, "bla", "blaBla"))
@@ -160,10 +131,7 @@ class TestDbRemote(unittest.TestCase):
         self.assertFalse(utils.dbExists(conn, "bla"))
         self.assertTrue(utils.tableExists(conn, "t1", self._dbA))
         # utils.useDb(conn, self._dbA)
-        conn = getEngineFromArgs(
-            username=self._user, password=self._pass,
-            host=self._host, port=self._port,
-            database=self._dbA).connect()
+        conn = getEngineFromFile(self.CREDFILE, database=self._dbA).connect()
         self.assertTrue(utils.tableExists(conn, "t1"))
         self.assertFalse(utils.tableExists(conn, "bla"))
         self.assertFalse(utils.tableExists(conn, "bla", "blaBla"))
@@ -180,12 +148,7 @@ def main():
         datefmt='%m/%d/%Y %I:%M:%S',
         level=log.DEBUG)
 
-    credFile = os.path.expanduser(TestDbRemote.CREDFILE+".mysql")
-    if not os.path.isfile(credFile):
-        log.warning("Required file with credentials '%s' not found.", credFile)
-        return
-
-    credFile = os.path.expanduser(TestDbRemote.CREDFILE+".ini")
+    credFile = os.path.expanduser(TestDbRemote.CREDFILE)
     if not os.path.isfile(credFile):
         log.warning("Required file with credentials '%s' not found.", credFile)
         return
