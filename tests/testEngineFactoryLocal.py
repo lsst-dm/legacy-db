@@ -150,14 +150,6 @@ class TestDbLocal(unittest.TestCase):
         engine = getEngineFromFile(self.CREDFILE, host="dummyHost", port=3036)
         self.assertRaises(sqlalchemy.exc.OperationalError, engine.connect)
 
-    def testConn_invalidPortNo(self):
-        engine = getEngineFromFile(self.CREDFILE, port=987654)
-        self.assertRaises(sqlalchemy.exc.OperationalError, engine.connect)
-
-    def testConn_wrongPortNo(self):
-        engine = getEngineFromFile(self.CREDFILE, port=1579)
-        self.assertRaises(sqlalchemy.exc.OperationalError, engine.connect)
-
     def testConn_invalidUserName(self):
         # Disabling because this can work, depending on MySQL
         # configuration, for example, it can default to ''@localhost
@@ -172,7 +164,7 @@ class TestDbLocal(unittest.TestCase):
 
     def testConn_badSocketGoodHostPort(self):
         # invalid socket, but good host/port
-        conn = getEngineFromFile(self.CREDFILE, query={"unix_socket": "/x/sock"}).connect()
+        conn = getEngineFromFile(self.CREDFILE, host='127.0.0.1', query={"unix_socket": "/x/sock"}).connect()
         conn.close()
 
     def testConn_invalidOptionFile(self):
@@ -438,8 +430,9 @@ class TestDbLocal(unittest.TestCase):
         os.write(fd, '1\n2\n3\n4\n4\n4\n5\n3\n')
         os.close(fd)
 
-        conn = getEngineFromFile(self.CREDFILE,
-                                   query={"local_infile": "1"}).connect()
+        query = self._engine.url.query.copy()
+        query['local_infile'] = '1'
+        conn = getEngineFromFile(self.CREDFILE, query=query).connect()
         utils.createDb(conn, self._dbA)
         utils.useDb(conn, self._dbA)
         utils.createTable(conn, "t1", "(i int)")
