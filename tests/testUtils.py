@@ -21,7 +21,12 @@
 # see <http://www.lsstcorp.org/LegalNotices/>.
 
 """
-This is a unittest for the Utils class.
+This is a unittest for the db.utils mdule.
+
+The test requires credential file ~/.lsst/dbAuth-testUtils.ini with the following:
+
+[database]
+url = mysql+mysqldb://<userName>:<password>@localhost:13306/?unix_socket=<path to socket>
 
 @author  Jacek Becla, SLAC
 
@@ -32,35 +37,55 @@ import tempfile
 import unittest
 
 import lsst.log as log
-from lsst.db.testHelper import readCredentialFile
+from lsst.db.engineFactory import getEngineFromFile
+from lsst.db import utils
 
 
 class TestUtils(unittest.TestCase):
+    CREDFILE = "~/.lsst/dbAuth-testUtils.ini"
 
-    def testReadCredF(self):
-        f, fN = tempfile.mkstemp(suffix=".cnf", text=True)
-        f = open(fN, 'w')
-        f.write("""
-[mysql]
-host = localhost
-port = 3455
-user = dummyX
-password = 123a
-socket = /tmp/my/socket.sock
-""")
-        f.close()
-        dict = readCredentialFile(fN)
-        self.assertEqual(dict["host"], "localhost")
-        self.assertEqual(dict["port"], "3455")
-        self.assertEqual(dict["user"], "dummyX")
-        self.assertEqual(dict["passwd"], "123a")
-        self.assertEqual(dict["unix_socket"], "/tmp/my/socket.sock")
-        os.remove(fN)
+    def testLoadSqlScriptFromObject(self):
+        conn = getEngineFromFile(self.CREDFILE).connect()
+        dbName = "%s_dbWrapperTestDb" % conn.engine.url.username
+
+        commands = ["create database %s;" % dbName,
+                    "use %s;" % dbName,
+                    "create table t(i int);",
+                    "insert into t values (1), (2), (2), (5);"]
+
+        # make file object and pass it to loadSqlScript
+        script = tempfile.TemporaryFile()
+        script.write('\n'.join(commands))
+        script.seek(0)
+        utils.loadSqlScript(conn, script)
+        utils.dropDb(conn, dbName)
+
+    def testLoadSqlScriptFromPath(self):
+        conn = getEngineFromFile(self.CREDFILE).connect()
+        dbName = "%s_dbWrapperTestDb" % conn.engine.url.username
+
+        commands = ["create database %s;" % dbName,
+                    "use %s;" % dbName,
+                    "create table t(i int);",
+                    "insert into t values (1), (2), (2), (5);"]
+
+        # make file but pass the name of that file to loadSqlScript
+        script = tempfile.NamedTemporaryFile()
+        script.write('\n'.join(commands))
+        script.seek(0)
+        utils.loadSqlScript(conn, script.name)
+        utils.dropDb(conn, dbName)
 
 ####################################################################################
 
 
 def main():
+
+    credFile = os.path.expanduser(TestUtils.CREDFILE)
+    if not os.path.isfile(credFile):
+        log.warn("Required file with credentials '%s' not found.", credFile)
+        return
+
     unittest.main()
 
 if __name__ == "__main__":

@@ -26,23 +26,8 @@ local server connections.
 
 The test requires credential file ~/.lsst/dbAuth-testLocal.ini with the following:
 
-[url]
-drivername = <driverName>
-username   = <userName>
-password   = <password> # this is optional
-host       = 127.0.0.1
-port       = 13306
-query      = {"unix_socket: <path to socket>"}
-
-and ~/.lsst/dbAuth-testLocal.mysql with:
-
-[mysql]
-user    = <userName>
-passwd  = <password>
-host    = 127.0.0.1
-port    = 13306
-socket  = <path to socket>
-
+[database]
+url = mysql+mysqldb://<userName>:<password>@localhost:13306/?unix_socket=<path to socket>
 
 User will need full mysql privileges.
 
@@ -62,7 +47,6 @@ except ImportError:
 import logging as log
 import os
 import tempfile
-import time
 import unittest
 
 # third party
@@ -71,26 +55,18 @@ import sqlalchemy
 # local
 from lsst.db.engineFactory import getEngineFromFile, getEngineFromArgs
 from lsst.db import utils
-from lsst.db.testHelper import readCredentialFile, loadSqlScript, CannotExecuteScriptError
 
 
 class TestDbLocal(unittest.TestCase):
-    CREDFILE = "~/.lsst/dbAuth-testLocal"
+    CREDFILE = "~/.lsst/dbAuth-testLocal.ini"
 
     def setUp(self):
-        dict = readCredentialFile(self.CREDFILE+".mysql")
-        (self._sock, self._host, self._port, self._user, self._pass) = \
-            [dict.get(k, None) for k in (
-                'unix_socket', 'host', 'port', 'user', 'password')]
-        if self._pass is None:
-            self._pass = ''
-        self._dbA = "%s_dbWrapperTestDb_A" % self._user
-        self._dbB = "%s_dbWrapperTestDb_B" % self._user
-        self._dbC = "%s_dbWrapperTestDb_C" % self._user
+        self._engine = getEngineFromFile(self.CREDFILE)
+        self._dbA = "%s_dbWrapperTestDb_A" % self._engine.url.username
+        self._dbB = "%s_dbWrapperTestDb_B" % self._engine.url.username
+        self._dbC = "%s_dbWrapperTestDb_C" % self._engine.url.username
 
-        conn = getEngineFromArgs(
-            username=self._user, password=self._pass, host=self._host,
-            port=self._port, query={"unix_socket": self._sock}).connect()
+        conn = self._engine.connect()
 
         if utils.dbExists(conn, self._dbA):
             utils.dropDb(conn, self._dbA)
@@ -104,51 +80,47 @@ class TestDbLocal(unittest.TestCase):
         """
         Simplest test, just get the engine and check if default backed is mysql
         """
-        engine = getEngineFromArgs(
-            username=self._user, password=self._pass,
-            host=self._host, port=self._port)
-        self.assertEqual("mysql", engine.url.get_backend_name())
+        self.assertEqual("mysql", self._engine.url.get_backend_name())
 
     def testOverridingUrl(self):
         """
         Test overwriting values from config file.
         """
-        engine = getEngineFromFile(self.CREDFILE+".ini",
+        engine = getEngineFromFile(self.CREDFILE,
                                    username="peter",
                                    password="hi")
         self.assertEqual(engine.url.username, "peter")
         self.assertEqual(engine.url.password, "hi")
-        engine = getEngineFromFile(self.CREDFILE+".ini",
+        engine = getEngineFromFile(self.CREDFILE,
                                    host="lsst125",
                                    port="1233")
         self.assertEqual(engine.url.host, "lsst125")
         self.assertEqual(engine.url.port, "1233")
-        engine = getEngineFromFile(self.CREDFILE+".ini",
+        engine = getEngineFromFile(self.CREDFILE,
                                    database="myBestDB")
         self.assertEqual(engine.url.database, "myBestDB")
-
-    def testBasicHostPortConn(self):
-        """
-        Basic test: connect through port, create db and connect to it, create one
-        table, drop the db, disconnect.
-        """
-        conn = getEngineFromArgs(
-            username=self._user, password=self._pass,
-            host=self._host, port=self._port).connect()
-        utils.createDb(conn, self._dbA)
-        utils.useDb(conn, self._dbA)
-        utils.createTable(conn, "t1", "(i int)")
-        utils.dropDb(conn, self._dbA)
-        conn.close()
 
     def testBasicSocketConn(self):
         """
         Basic test: connect through socket, create db and connect to it, create one
         table, drop the db, disconnect.
         """
-        conn = getEngineFromArgs(
-            username=self._user, password=self._pass,
-            query={"unix_socket": self._sock}).connect()
+        conn = self._engine.connect()
+        utils.createDb(conn, self._dbA)
+        utils.useDb(conn, self._dbA)
+        utils.createTable(conn, "t1", "(i int)")
+        utils.dropDb(conn, self._dbA)
+        conn.close()
+
+    def testGetEngineFromArgs(self):
+        url = self._engine.url
+        conn = getEngineFromArgs(drivername=url.drivername,
+                                 username=url.username,
+                                 password=url.password,
+                                 host=url.host,
+                                 port=url.port,
+                                 database=url.database,
+                                 query=url.query).connect()
         utils.createDb(conn, self._dbA)
         utils.useDb(conn, self._dbA)
         utils.createTable(conn, "t1", "(i int)")
@@ -156,9 +128,7 @@ class TestDbLocal(unittest.TestCase):
         conn.close()
 
     def testUseDb(self):
-        conn = getEngineFromArgs(
-            username=self._user, password=self._pass,
-            query={"unix_socket": self._sock}).connect()
+        conn = self._engine.connect()
         utils.createDb(conn, self._dbA)
         utils.useDb(conn, self._dbA)
         utils.createTable(conn, "t1", "(i int)")
@@ -173,27 +143,19 @@ class TestDbLocal(unittest.TestCase):
         utils.dropDb(conn, self._dbB)
 
     def testConn_invalidHost1(self):
-        engine = getEngineFromArgs(
-            username=self._user, password=self._pass,
-            host="invalidHost", port=self._port)
+        engine = getEngineFromFile(self.CREDFILE, host="invalidHost")
         self.assertRaises(sqlalchemy.exc.OperationalError, engine.connect)
 
     def testConn_invalidHost2(self):
-        engine = getEngineFromArgs(
-            username=self._user, password=self._pass,
-            host="dummyHost", port=3036)
+        engine = getEngineFromFile(self.CREDFILE, host="dummyHost", port=3036)
         self.assertRaises(sqlalchemy.exc.OperationalError, engine.connect)
 
     def testConn_invalidPortNo(self):
-        engine = getEngineFromArgs(
-            username=self._user, password=self._pass,
-            host=self._host, port=987654)
+        engine = getEngineFromFile(self.CREDFILE, port=987654)
         self.assertRaises(sqlalchemy.exc.OperationalError, engine.connect)
 
     def testConn_wrongPortNo(self):
-        engine = getEngineFromArgs(
-            username=self._user, password=self._pass,
-            host=self._host, port=1579)
+        engine = getEngineFromFile(self.CREDFILE, port=1579)
         self.assertRaises(sqlalchemy.exc.OperationalError, engine.connect)
 
     def testConn_invalidUserName(self):
@@ -204,29 +166,13 @@ class TestDbLocal(unittest.TestCase):
     def testConn_invalidSocket(self):
         # make sure retry is disabled, otherwise it wil try to reconnect
         # (it will assume the server is down and socket valid).
-        engine = getEngineFromArgs(
-            username=self._user, password=self._pass,
-            query={"unix_socket": "/x/sock"})
-        self.assertRaises(sqlalchemy.exc.OperationalError, engine.connect)
-
-    def testConn_badHostPortGoodSocket(self):
-        # invalid host, but good socket
-        engine = getEngineFromArgs(
-            username=self._user, password=self._pass, host="invalidHost",
-            port=self._port, query={"unix_socket": self._sock})
-        self.assertRaises(sqlalchemy.exc.OperationalError, engine.connect)
-
-        # invalid port but good socket
-        engine = getEngineFromArgs(
-            username=self._user, password=self._pass, host=self._host,
-            port=9876543, query={"unix_socket": self._sock})
+        engine = getEngineFromFile(self.CREDFILE, host="localhost",
+                                   query={"unix_socket": "/x/sock"})
         self.assertRaises(sqlalchemy.exc.OperationalError, engine.connect)
 
     def testConn_badSocketGoodHostPort(self):
         # invalid socket, but good host/port
-        conn = getEngineFromArgs(
-            username=self._user, password=self._pass, host=self._host,
-            port=self._port, query={"unix_socket": "/x/sock"}).connect()
+        conn = getEngineFromFile(self.CREDFILE, query={"unix_socket": "/x/sock"}).connect()
         conn.close()
 
     def testConn_invalidOptionFile(self):
@@ -234,14 +180,13 @@ class TestDbLocal(unittest.TestCase):
 
     def testConn_badOptionFile(self):
         # start with an empty file
-        f, fN = tempfile.mkstemp(suffix=".cnf", text=True)
+        fd, fN = tempfile.mkstemp(suffix=".cnf", text=True)
         self.assertRaises(NoSectionError, getEngineFromFile, fN)
 
         # add socket only
-        f = open(fN, 'w')
-        f.write('[client]\n')
-        f.write('socket = /tmp/sth/wrong.sock\n')
-        f.close()
+        os.write(fd, '[client]\n')
+        os.write(fd, 'socket = /tmp/sth/wrong.sock\n')
+        os.close(fd)
         self.assertRaises(NoSectionError, getEngineFromFile, fN)
 
         os.remove(fN)
@@ -250,9 +195,7 @@ class TestDbLocal(unittest.TestCase):
         """
         Try interleaving operations on multiple databases.
         """
-        conn = getEngineFromArgs(
-            username=self._user, password=self._pass, host=self._host,
-            port=self._port, query={"unix_socket": "/x/sock"}).connect()
+        conn = self._engine.connect()
         utils.createDb(conn, self._dbA)
         utils.createDb(conn, self._dbB)
         utils.createDb(conn, self._dbC)
@@ -270,9 +213,7 @@ class TestDbLocal(unittest.TestCase):
         conn.close()
 
     def testListTables(self):
-        conn = getEngineFromArgs(
-            username=self._user, password=self._pass, host=self._host,
-            port=self._port, query={"unix_socket": "/x/sock"}).connect()
+        conn = self._engine.connect()
         utils.createDb(conn, self._dbA)
         utils.createTable(conn, "t1", "(i int)", self._dbA)
         utils.createTable(conn, "t2", "(i int)", self._dbA)
@@ -283,10 +224,7 @@ class TestDbLocal(unittest.TestCase):
         ret = utils.listTables(conn, self._dbB)
         self.assertEqual(len(ret), 0)
 
-        conn = getEngineFromArgs(
-            username=self._user, password=self._pass, host=self._host,
-            port=self._port, query={"unix_socket": "/x/sock"},
-            database=self._dbA).connect()
+        conn = getEngineFromFile(self.CREDFILE, database=self._dbA).connect()
         ret = utils.listTables(conn)
         self.assertEqual(len(ret), 2)
         self.assertIn("t1", ret)
@@ -294,9 +232,7 @@ class TestDbLocal(unittest.TestCase):
         utils.dropDb(conn, self._dbA)
 
     def testResults(self):
-        conn = getEngineFromArgs(
-            username=self._user, password=self._pass, host=self._host,
-            port=self._port, query={"unix_socket": "/x/sock"}).connect()
+        conn = self._engine.connect()
         utils.createDb(conn, self._dbA)
         utils.useDb(conn, self._dbA)
         utils.createTable(conn, "t1", "(id INT, theValue FLOAT)")
@@ -308,9 +244,7 @@ class TestDbLocal(unittest.TestCase):
         """
         Test creating db/table that already exists (in default db).
         """
-        conn = getEngineFromArgs(
-            username=self._user, password=self._pass, host=self._host,
-            port=self._port, query={"unix_socket": "/x/sock"}).connect()
+        conn = self._engine.connect()
         utils.createDb(conn, self._dbA)
         utils.createDb(conn, self._dbA, mayExist=True)
         self.assertRaises(utils.DatabaseExistsError, utils.createDb, conn, self._dbA)
@@ -321,9 +255,7 @@ class TestDbLocal(unittest.TestCase):
         utils.dropDb(conn, self._dbA)
 
     def testDropDb(self):
-        conn = getEngineFromArgs(
-            username=self._user, password=self._pass, host=self._host,
-            port=self._port, query={"unix_socket": "/x/sock"}).connect()
+        conn = self._engine.connect()
         utils.createDb(conn, self._dbA)
         utils.dropDb(conn, self._dbA)
         utils.dropDb(conn, self._dbA, mustExist=False)
@@ -334,9 +266,7 @@ class TestDbLocal(unittest.TestCase):
         """
         Test creating db/table that already exists (in non default db).
         """
-        conn = getEngineFromArgs(
-            username=self._user, password=self._pass, host=self._host,
-            port=self._port, query={"unix_socket": self._sock}).connect()
+        conn = self._engine.connect()
         utils.createDb(conn, self._dbA)
         self.assertRaises(utils.DatabaseExistsError, utils.createDb, conn, self._dbA)
         utils.useDb(conn, self._dbA)
@@ -355,9 +285,7 @@ class TestDbLocal(unittest.TestCase):
         conn.close()
 
     def testCreateTableLike(self):
-        conn = getEngineFromArgs(
-            username=self._user, password=self._pass, host=self._host,
-            port=self._port, query={"unix_socket": self._sock}).connect()
+        conn = self._engine.connect()
         utils.createDb(conn, self._dbA)
         utils.useDb(conn, self._dbA)
         utils.createTable(conn, "t1", "(i int)")
@@ -367,9 +295,7 @@ class TestDbLocal(unittest.TestCase):
                           conn, self._dbA, "t2", self._dbA, "dummy")
 
     def testDropTable(self):
-        conn = getEngineFromArgs(
-            username=self._user, password=self._pass, host=self._host,
-            port=self._port, query={"unix_socket": self._sock}).connect()
+        conn = self._engine.connect()
         # using current db
         utils.createDb(conn, self._dbA)
         utils.useDb(conn, self._dbA)
@@ -411,9 +337,7 @@ class TestDbLocal(unittest.TestCase):
         """
         Test checkExist for databases and tables.
         """
-        conn = getEngineFromArgs(
-            username=self._user, password=self._pass, host=self._host,
-            port=self._port, query={"unix_socket": self._sock}).connect()
+        conn = self._engine.connect()
         self.assertFalse(utils.dbExists(conn, "bla"))
         self.assertFalse(utils.tableExists(conn, "bla"))
         self.assertFalse(utils.tableExists(conn, "bla", "blaBla"))
@@ -429,10 +353,7 @@ class TestDbLocal(unittest.TestCase):
         self.assertFalse(utils.dbExists(conn, "bla"))
         self.assertTrue(utils.tableExists(conn, "t1", self._dbA))
         # utils.useDb(conn, self._dbA)
-        conn = getEngineFromArgs(
-            username=self._user, password=self._pass, host=self._host,
-            port=self._port, query={"unix_socket": self._sock},
-            database=self._dbA).connect()
+        conn = getEngineFromFile(self.CREDFILE, database=self._dbA).connect()
         self.assertTrue(utils.tableExists(conn, "t1"))
         self.assertFalse(utils.tableExists(conn, "bla"))
         self.assertFalse(utils.tableExists(conn, "bla", "blaBla"))
@@ -447,9 +368,7 @@ class TestDbLocal(unittest.TestCase):
         """
         Testing optional parameter binding.
         """
-        conn = getEngineFromArgs(
-            username=self._user, password=self._pass, host=self._host,
-            port=self._port, query={"unix_socket": self._sock}).connect()
+        conn = self._engine.connect()
         utils.createDb(conn, self._dbA)
         utils.useDb(conn, self._dbA)
         utils.createTable(conn, "t1", "(i char(64), j char(64))")
@@ -460,9 +379,7 @@ class TestDbLocal(unittest.TestCase):
         """
         Testing functionality related to views.
         """
-        conn = getEngineFromArgs(
-            username=self._user, password=self._pass, host=self._host,
-            port=self._port, query={"unix_socket": self._sock}).connect()
+        conn = self._engine.connect()
         utils.createDb(conn, self._dbA)
         utils.useDb(conn, self._dbA)
         utils.createTable(conn, "t1", "(i int, j int)")
@@ -476,9 +393,7 @@ class TestDbLocal(unittest.TestCase):
         """
         Testing recovery from lost connection.
         """
-        conn = getEngineFromArgs(
-            username=self._user, password=self._pass, host=self._host,
-            port=self._port, query={"unix_socket": self._sock}).connect()
+        conn = self._engine.connect()
         utils.createDb(conn, self._dbA)
         # time.sleep(10)
         # ##########################################################################
@@ -489,45 +404,28 @@ class TestDbLocal(unittest.TestCase):
         utils.dropDb(conn, self._dbB)
 
     def testLoadSqlScriptNoDb(self):
-        f, fN = tempfile.mkstemp(suffix=".csv", text=True)
-        f = open(fN, 'w')
-        f.write("create database %s;\n" % self._dbA)
-        f.write("use %s;\n" % self._dbA)
-        f.write("create table t(i int);\n")
-        f.write("insert into t values (1), (2), (2), (5);\n")
-        f.close()
-        conn = getEngineFromFile(self.CREDFILE+".ini").connect()
-        loadSqlScript(fN, username=self._user, host=self._host, port=self._port)
+        fd, fN = tempfile.mkstemp(suffix=".csv", text=True)
+        os.write(fd, "create database %s;\n" % self._dbA)
+        os.write(fd, "use %s;\n" % self._dbA)
+        os.write(fd, "create table t(i int);\n")
+        os.write(fd, "insert into t values (1), (2), (2), (5);\n")
+        os.close(fd)
+        conn = self._engine.connect()
+        utils.loadSqlScript(conn, fN)
         self.assertEqual(10, conn.execute("select sum(i) from %s.t" % self._dbA).first()[0])
         utils.dropDb(conn, self._dbA)
         conn.close()
         os.remove(fN)
 
     def testLoadSqlScriptWithDb(self):
-        f, fN = tempfile.mkstemp(suffix=".csv", text=True)
-        f = open(fN, 'w')
-        f.write("create table t(i int, d double);\n")
-        f.write("insert into t values (1, 1.1), (2, 2.2);\n")
-        f.close()
-        conn = getEngineFromFile(self.CREDFILE+".ini").connect()
+        fd, fN = tempfile.mkstemp(suffix=".csv", text=True)
+        os.write(fd, "create table t(i int, d double);\n")
+        os.write(fd, "insert into t values (1, 1.1), (2, 2.2);\n")
+        os.close(fd)
+        conn = self._engine.connect()
         utils.createDb(conn, self._dbA)
-        loadSqlScript(
-            fN, username=self._user, host=self._host, port=self._port, db=self._dbA)
+        utils.loadSqlScript(conn, fN, self._dbA)
         self.assertEqual(3, conn.execute("select sum(i) from %s.t" % self._dbA).first()[0])
-        utils.dropDb(conn, self._dbA)
-        conn.close()
-        os.remove(fN)
-
-    def testLoadSqlScriptPlainPassword(self):
-        # password is disallowed through loadsqlscript, check on that.
-        f, fN = tempfile.mkstemp(suffix=".csv", text=True)
-        conn = getEngineFromArgs(
-            username=self._user, password=self._pass,
-            host=self._host, port=self._port).connect()
-        utils.createDb(conn, self._dbA)
-        args = dict()
-        args["db"] = self._dbA
-        self.assertRaises(CannotExecuteScriptError, loadSqlScript, fN, **args)
         utils.dropDb(conn, self._dbA)
         conn.close()
         os.remove(fN)
@@ -536,14 +434,12 @@ class TestDbLocal(unittest.TestCase):
         """
         Testing "LOAD DATA INFILE..."
         """
-        f, fN = tempfile.mkstemp(suffix=".csv", text=True)
-        f = open(fN, 'w')
-        f.write('1\n2\n3\n4\n4\n4\n5\n3\n')
-        f.close()
+        fd, fN = tempfile.mkstemp(suffix=".csv", text=True)
+        os.write(fd, '1\n2\n3\n4\n4\n4\n5\n3\n')
+        os.close(fd)
 
-        conn = getEngineFromArgs(
-            username=self._user, password=self._pass,
-            query={"unix_socket": self._sock, "local_infile": "1"}).connect()
+        conn = getEngineFromFile(self.CREDFILE,
+                                   query={"local_infile": "1"}).connect()
         utils.createDb(conn, self._dbA)
         utils.useDb(conn, self._dbA)
         utils.createTable(conn, "t1", "(i int)")
@@ -571,12 +467,7 @@ def main():
         datefmt='%m/%d/%Y %I:%M:%S',
         level=log.DEBUG)
 
-    credFile = os.path.expanduser(TestDbLocal.CREDFILE+".mysql")
-    if not os.path.isfile(credFile):
-        log.warning("Required file with credentials '%s' not found.", credFile)
-        return
-
-    credFile = os.path.expanduser(TestDbLocal.CREDFILE+".ini")
+    credFile = os.path.expanduser(TestDbLocal.CREDFILE)
     if not os.path.isfile(credFile):
         log.warning("Required file with credentials '%s' not found.", credFile)
         return
