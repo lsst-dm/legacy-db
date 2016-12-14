@@ -29,7 +29,9 @@ from builtins import object
 
 # standard library
 import logging as log
+import os
 import subprocess
+import tempfile
 
 # third party
 from sqlalchemy.exc import DBAPIError, NoSuchModuleError, \
@@ -402,26 +404,39 @@ def loadSqlScript(conn, script, dbName=None):
     url = conn.engine.url
     if url.get_backend_name() == "mysql":
 
-        # build command line, do not use any defaults
-        cmd = ['mysql', '--no-defaults', '--batch', '--quick']
+        # make tmpfile to store credentials and options
+        fd, fname = tempfile.mkstemp(text=True)
+
+        os.write(fd, "[client]\n")
+        os.write(fd, "batch\n")
+        os.write(fd, "quick\n")
+
+        # build command line, use the options file above
         if url.host:
-            cmd.append('--host=' + url.host)
+            os.write(fd, 'host={}\n'.format(url.host))
         if url.port:
-            cmd.append('--port=' + str(url.port))
+            os.write(fd, 'port={}\n'.format(url.port))
         socket = url.query.get('unix_socket')
         if socket:
-            cmd.append('--socket=' + socket)
+            os.write(fd, 'socket="{}"\n'.format(socket))
         if url.username:
-            cmd.append('--user=' + url.username)
+            os.write(fd, 'user="{}"\n'.format(url.username))
         if url.password:
-            cmd.append('--password=' + url.password)
+            os.write(fd, 'password="{}"\n'.format(url.password))
         if not dbName:
             dbName = url.database
         if dbName:
-            cmd.append('--database=' + dbName)
+            os.write(fd, 'database={}'.format(dbName))
+        # not all platforms can read file while it's open
+        os.close(fd)
 
-        # it will throw on errors
-        subprocess.check_call(cmd, stdin=script)
+        try:
+            # it will throw on errors
+            cmd = ['mysql', '--defaults-file=' + fname]
+            subprocess.check_call(cmd, stdin=script)
+        finally:
+            # cleanup - remove file with credentials
+            os.unlink(fname)
 
     else:
         raise NoSuchModuleError(url.get_backend_name())
