@@ -24,8 +24,9 @@ in particular these that are specific to different drivers.
 
 @author  Jacek Becla, SLAC
 """
-from builtins import object
 
+from __future__ import print_function
+from builtins import object
 
 # standard library
 import logging as log
@@ -397,39 +398,45 @@ def loadSqlScript(conn, script, dbName=None):
                        database used by connection/engine.
     """
 
-    # check file, if it has 'read' attribute assume it's a file object
-    if not hasattr(script, 'read'):
-        script = open(script)
-
     url = conn.engine.url
     if url.get_backend_name() == "mysql":
 
-        # make tmpfile to store credentials and options
-        fd, fname = tempfile.mkstemp(text=True)
+        # check file, if it has 'read' attribute assume it's a file object,
+        # otherwise assume it's file name, open it and close later.
+        cleanup = None
+        if not hasattr(script, 'read'):
+            script = open(script)
+            cleanup = script.close
 
-        os.write(fd, "[client]\n")
-        os.write(fd, "batch\n")
-        os.write(fd, "quick\n")
+        # write credentials and options to a temporary file, we have to
+        # close it but will delete it after mysql finishes.
+        cfg = tempfile.NamedTemporaryFile("w", delete=False)
+        fname = cfg.name
 
-        # build command line, use the options file above
+        print("[client]", file=cfg)
+        print("batch", file=cfg)
+        print("quick", file=cfg)
+
+        # convert to UTF-8 if there are unicode chars, hope mysql can read it
         if url.host:
-            os.write(fd, 'host={}\n'.format(url.host))
+            print('host={}'.format(url.host), file=cfg)
         if url.port:
-            os.write(fd, 'port={}\n'.format(url.port))
+            print('port={}'.format(url.port), file=cfg)
         socket = url.query.get('unix_socket')
         if socket:
-            os.write(fd, 'socket="{}"\n'.format(socket))
+            print('socket="{}"'.format(socket), file=cfg)
         if url.username:
-            os.write(fd, 'user="{}"\n'.format(url.username))
+            print('user="{}"'.format(url.username), file=cfg)
         if url.password:
-            os.write(fd, 'password="{}"\n'.format(url.password))
+            print('password="{}"'.format(url.password), file=cfg)
         if not dbName:
             dbName = url.database
         if dbName:
-            os.write(fd, 'database={}'.format(dbName))
+            print('database={}'.format(dbName), file=cfg)
         # not all platforms can read file while it's open
-        os.close(fd)
+        cfg.close()
 
+        # build command line, use the options file above
         try:
             # it will throw on errors
             cmd = ['mysql', '--defaults-file=' + fname]
@@ -437,6 +444,8 @@ def loadSqlScript(conn, script, dbName=None):
         finally:
             # cleanup - remove file with credentials
             os.unlink(fname)
+            if cleanup is not None:
+                cleanup()
 
     else:
         raise NoSuchModuleError(url.get_backend_name())
