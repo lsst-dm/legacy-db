@@ -78,7 +78,10 @@ def getEngineFromFile(fileName,
     """
     fileName = os.path.expanduser(fileName)
     parser = ConfigParser()
-    parser.readfp(open(fileName), fileName)
+    with open(fileName) as config:
+        # readfp is deprecated in Python3.x, read_file is not in Python2
+        read_file = getattr(parser, "read_file", None) or getattr(parser, "readfp")
+        read_file(config, fileName)
     try:
         options = dict(parser.items("database"))
     except NoSectionError:
