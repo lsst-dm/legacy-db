@@ -44,6 +44,13 @@ from lsst.db import utils
 class TestUtils(unittest.TestCase):
     CREDFILE = "~/.lsst/dbAuth-testUtils.ini"
 
+    @classmethod
+    def setUpClass(cls):
+        credFile = os.path.expanduser(cls.CREDFILE)
+        if not os.path.isfile(credFile):
+            raise unittest.SkipTest("Required file with credentials"
+                                    " '{}' not found.".format(credFile))
+
     def testLoadSqlScriptFromObject(self):
         conn = getEngineFromFile(self.CREDFILE).connect()
         dbName = "%s_dbWrapperTestDb" % conn.engine.url.username
@@ -76,17 +83,6 @@ class TestUtils(unittest.TestCase):
         utils.loadSqlScript(conn, script.name)
         utils.dropDb(conn, dbName)
 
-####################################################################################
-
-
-def main():
-
-    credFile = os.path.expanduser(TestUtils.CREDFILE)
-    if not os.path.isfile(credFile):
-        log.warn("Required file with credentials '%s' not found.", credFile)
-        return
-
-    unittest.main()
 
 if __name__ == "__main__":
-    main()
+    unittest.main()

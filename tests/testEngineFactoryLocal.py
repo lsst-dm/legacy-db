@@ -60,6 +60,18 @@ from lsst.db import utils
 class TestDbLocal(unittest.TestCase):
     CREDFILE = "~/.lsst/dbAuth-testLocal.ini"
 
+    @classmethod
+    def setUpClass(cls):
+        log.basicConfig(
+            format='%(asctime)s %(name)s %(levelname)s: %(message)s',
+            datefmt='%m/%d/%Y %I:%M:%S',
+            level=log.DEBUG)
+
+        credFile = os.path.expanduser(cls.CREDFILE)
+        if not os.path.isfile(credFile):
+            raise unittest.SkipTest("Required file with credentials"
+                                    " '{}' not found.".format(credFile))
+
     def setUp(self):
         self._engine = getEngineFromFile(self.CREDFILE)
         self._dbA = "%s_dbWrapperTestDb_A" % self._engine.url.username
@@ -451,21 +463,6 @@ class TestDbLocal(unittest.TestCase):
         conn.close()
         os.remove(fN)
 
-####################################################################################
-
-
-def main():
-    log.basicConfig(
-        format='%(asctime)s %(name)s %(levelname)s: %(message)s',
-        datefmt='%m/%d/%Y %I:%M:%S',
-        level=log.DEBUG)
-
-    credFile = os.path.expanduser(TestDbLocal.CREDFILE)
-    if not os.path.isfile(credFile):
-        log.warning("Required file with credentials '%s' not found.", credFile)
-        return
-
-    unittest.main()
 
 if __name__ == "__main__":
-    main()
+    unittest.main()
