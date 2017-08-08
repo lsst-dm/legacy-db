@@ -1,6 +1,6 @@
 # -*- python -*-
 from lsst.sconsUtils import scripts
 scripts.BasicSConscript.tests(
-    pyList=["testEngineFactoryLocal.py",
-            "testEngineFactoryRemote.py",
-            "testUtils.py"])
+    pyList=["test_EngineFactoryLocal.py",
+            "test_EngineFactoryRemote.py",
+            "test_Utils.py"])
