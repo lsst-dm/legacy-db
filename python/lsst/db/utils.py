@@ -25,9 +25,6 @@ in particular these that are specific to different drivers.
 @author  Jacek Becla, SLAC
 """
 
-from __future__ import print_function
-from builtins import object
-
 # standard library
 import logging as log
 import os
@@ -45,7 +42,7 @@ from MySQLdb.constants import FIELD_TYPE
 
 # MySQL errors that we are catching
 # Names and numbers from include/mysql/mysql.h
-class MySqlErr(object):
+class MySqlErr:
     ER_DB_CREATE_EXISTS = 1007
     ER_DB_DROP_EXISTS = 1008
     ER_NO_DB_ERROR = 1046

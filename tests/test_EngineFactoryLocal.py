@@ -40,10 +40,7 @@ Known issues and todos:
 """
 
 # standard library
-try:
-    from ConfigParser import NoSectionError
-except ImportError:
-    from configparser import NoSectionError
+from configparser import NoSectionError
 import logging as log
 import os
 import tempfile

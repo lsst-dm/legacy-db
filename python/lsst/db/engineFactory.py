@@ -27,10 +27,7 @@ This module exposes engine from SQLAlchemy.
 """
 
 # standard library imports
-try:
-    from ConfigParser import ConfigParser, NoSectionError
-except ImportError:
-    from configparser import ConfigParser, NoSectionError
+from configparser import ConfigParser, NoSectionError
 
 import logging as log
 import os
