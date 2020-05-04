@@ -1,8 +1,5 @@
 setupRequired(log)
-setupRequired(python)
 setupRequired(mariadbclient)
-setupRequired(python_mysqlclient)
 setupRequired(sconsUtils)
-setupRequired(sqlalchemy)
 
 envPrepend(PYTHONPATH, ${PRODUCT_DIR}/python)
